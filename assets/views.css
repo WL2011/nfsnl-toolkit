@@ -737,3 +737,44 @@ th.m-g, th.m-u, th.m-k { font-weight: 700; }
 .brand:hover { border-color: var(--accent); color: var(--accent-text); }
 .brand img { width: 34px; height: 24px; object-fit: contain; background: #fff; border-radius: 5px; padding: 1px; flex: none; }
 .empty-state.small { padding: 40px 20px 10px; }
+
+/* ---- search v2 ---- */
+.search-kbd { font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text-3); border: 1px solid var(--border-strong); border-bottom-width: 2px; border-radius: 6px; padding: 4px 8px; background: var(--surface-2); }
+.sf { display: flex; flex-direction: column; gap: 8px; margin: 14px 0 4px; }
+.sf-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.sf-k { width: 48px; flex: none; font-size: 12.5px; color: var(--text-3); }
+.sf-chip { --r: var(--accent); display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 999px; padding: 4px 12px; font-size: 13px; cursor: pointer; transition: border-color .15s, background .15s, color .15s; white-space: nowrap; }
+.sf-chip:hover { border-color: var(--border-strong); color: var(--text); }
+.sf-chip img { width: 16px; height: 16px; object-fit: contain; }
+.sf-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--r); }
+.sf-chip.on { border-color: var(--r); color: var(--r); background: color-mix(in srgb, var(--r) 11%, var(--surface)); font-weight: 650; }
+.sf-chip.on:not([class*="r-"]) { --r: var(--accent-text, var(--accent)); }
+.sr-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin: 18px 0 10px; }
+.sr-count { font-size: 13.5px; color: var(--text-2); display: flex; align-items: center; gap: 4px; }
+.sr-count b { color: var(--text); font-weight: 700; }
+.seg.sm { padding: 3px; border-radius: 10px; }
+.seg.sm .seg-item { padding: 4px 10px; font-size: 12.5px; }
+.link-btn { border: 0; background: none; color: var(--accent-text, var(--accent)); cursor: pointer; font-size: 12.5px; padding: 2px 6px; margin-left: 6px; border-radius: 6px; }
+.link-btn:hover { background: var(--accent-soft); }
+.sr-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(440px, 1fr)); gap: 8px; }
+.sr-list.compact { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+@media (max-width: 720px) { .sr-list { grid-template-columns: 1fr; } }
+.sr-list .result { min-width: 0; }
+.result.kb { border-color: var(--accent); border-left-color: var(--r, var(--r-common)); box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow-sm); }
+.result mark, .faq summary mark { background: color-mix(in srgb, #f5b301 30%, transparent); color: inherit; border-radius: 3px; padding: 0 1px; }
+.result-alt { font-size: 11.5px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.result-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex: none; font-size: 11.5px; color: var(--text-3); white-space: nowrap; }
+.result-rarity { color: var(--r, var(--r-common)); font-weight: 600; }
+.result-pr b { color: var(--text-2); font-weight: 650; font-variant-numeric: tabular-nums; }
+.result-tags { display: flex; flex-direction: column; gap: 2px; flex: none; max-width: 80px; }
+.result-tags span { font-size: 10.5px; line-height: 1.5; padding: 0 6px; border-radius: 5px; background: var(--surface-2); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.result-tags span:nth-child(n+3) { display: none; }
+.s-block { margin-bottom: 6px; }
+.hist { display: flex; flex-wrap: wrap; gap: 6px; }
+.faq-more { align-self: flex-start; margin: 2px 0 0; }
+.s-tips { margin-top: 18px; }
+.v-search .search-box { position: sticky; top: 10px; z-index: 6; }
+.v-search .search-box::before { content: ""; position: absolute; left: -20px; right: -20px; top: -12px; height: 12px; background: var(--bg); }
+.sf .sf-chip.r-common { --r: var(--r-common); } .sf .sf-chip.r-uncommon { --r: var(--r-uncommon); } .sf .sf-chip.r-rare { --r: var(--r-rare); }
+.sf .sf-chip.r-epic { --r: var(--r-epic); } .sf .sf-chip.r-legendary { --r: var(--r-legendary); }
+.faq-a mark { background: color-mix(in srgb, #f5b301 30%, transparent); color: inherit; border-radius: 3px; padding: 0 1px; }

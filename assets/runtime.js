@@ -552,6 +552,8 @@
       try { requireModule(route + '.js'); } catch (e) { console.error('page module failed', route, e); }
     }
     registeringRoute = null;
+    // hand-written page logic upgrades (assets/*.js push into window.__pagePatches)
+    for (const p of (window.__pagePatches || [])) { try { p(pageDefs, requireModule); } catch (e) { console.error('page patch failed', e); } }
     try { appInst.onLaunch && appInst.onLaunch({ path: CFG.entry, query: {} }); } catch (e) { console.error('onLaunch', e); }
     // the random 'game quote' easter egg leads to the removed 信息 page — switch it off
     appInst.showToast = function () {};

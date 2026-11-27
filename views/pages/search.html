@@ -1,56 +1,113 @@
 <!--
-  搜索 (pages/search/search) — desktop layout.
-  Original handlers: searchValueInput (live search), onFouse/onBlur, deleteTxt (clear), hitbuttonclick (brand), searchresultclick (car).
-  The original kept "大家都在搜：xxx" as the input's value; here it is shown as the placeholder instead.
+  搜索 (pages/search/search) — desktop layout. Logic lives in assets/search.js (patches the original page):
+  multi-keyword ranked matching with highlights, rarity / class / tag filters, sorting, browse-without-query,
+  recent searches / recently viewed, keyboard ↑↓ Enter Esc, and "/" or Ctrl/⌘+K from anywhere.
 -->
 <div class="v-page v-search">
   <div class="search-box">
     <svg class="search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
     <input class="search-input" type="text" autofocus autocomplete="off" spellcheck="false"
-      :value="String(searchValue || '').startsWith('大家都在搜：') ? '' : searchValue"
-      :placeholder="'搜索车名、品牌或问题　大家都在搜：' + (hotkeyword || '')"
+      :value="query"
+      :placeholder="'车名、品牌、简称、类别、稀有度或问题，可空格分隔多个词　例：' + (hotkeyword || '兰博 超跑')"
       @input="__e($event, 'searchValueInput', {}, 'input', '')"
-      @focus="__e($event, 'onFouse', {}, 'input', '')"
-      @blur="__e($event, 'onBlur', {}, 'input', '')">
-    <button v-if="searchCon" type="button" class="search-clear" title="清除" @click="__e($event, 'deleteTxt', {}, 'icon', '')">×</button>
+      @keydown="__searchKey($event)">
+    <button v-if="query" type="button" class="search-clear" title="清除 (Esc)" @click="__e($event, 'deleteTxt', {}, 'icon', '')">×</button>
+    <kbd v-else class="search-kbd" title="在任意页面按 / 或 Ctrl/⌘+K 打开搜索">/</kbd>
   </div>
 
-  <template v-if="searchCon">
-    <template v-if="resultdata?.length > 0">
-      <div class="v-section-title">赛车 <span class="muted">{{ resultdata.length }} 个结果 · 点击查看详情</span></div>
-      <div class="result-grid">
-        <button v-for="(r, k) in __list(resultdata)" :key="r.ID" type="button" class="result" :class="'r-' + BPColors?.[r.BPColor]"
-          @click="__e($event, 'searchresultclick', { index: r.ID }, 'button', '')">
-          <img class="result-type" :src="'img/cartype' + (r.Type + 1) + '.gif'" alt="">
-          <span class="result-text">
-            <span class="result-brand">{{ functions.getCarBrand(langMode, r) }}</span>
-            <span class="result-name">{{ functions.getCarName(langMode, r) }}</span>
-          </span>
-          <img class="result-logo" :src="ImageUrl + 'carbrands/' + (r.brand || String(r.Name || '').split(' ')[0]) + '.png'" alt="" loading="lazy" @error="$event.target.style.visibility = 'hidden'">
-        </button>
-      </div>
-    </template>
+  <!-- filters -->
+  <div class="sf">
+    <div class="sf-row">
+      <span class="sf-k">稀有度</span>
+      <button v-for="(name, i) in __list(rarityNames)" :key="i" type="button" class="sf-chip" :class="['r-' + BPColors?.[i], { on: filters.r.includes(i) }]"
+        @click="__e($event, 'toggleFilter', { g: 'r', v: i }, 'view', '')"><i class="sf-dot"></i>{{ name }}</button>
+    </div>
+    <div class="sf-row">
+      <span class="sf-k">类别</span>
+      <button v-for="(name, i) in __list(typeNames)" :key="i" type="button" class="sf-chip" :class="{ on: filters.t.includes(i) }"
+        @click="__e($event, 'toggleFilter', { g: 't', v: i }, 'view', '')"><img :src="'img/cartype' + (i + 1) + '.gif'" alt="">{{ name }}</button>
+    </div>
+    <div v-if="tagList?.length" class="sf-row">
+      <span class="sf-k">标签</span>
+      <button v-for="t in __list(tagList)" :key="t.k" type="button" class="sf-chip" :class="{ on: filters.g.includes(t.k) }"
+        @click="__e($event, 'toggleFilter', { g: 'g', v: t.k }, 'view', '')">{{ t.t }}</button>
+    </div>
+  </div>
 
-    <template v-if="faqlist?.length > 0">
-      <div class="v-section-title">常见问题 <span class="muted">{{ faqlist.length }} 条</span></div>
+  <!-- results -->
+  <template v-if="query || filters.r.length || filters.t.length || filters.g.length">
+    <div class="sr-bar">
+      <div class="sr-count">
+        <b>{{ total }}</b> 辆赛车<template v-if="faqResults?.length"> · <b>{{ faqResults.length }}</b> 条问题</template>
+        <button v-if="filters.r.length || filters.t.length || filters.g.length" type="button" class="link-btn" @click="__e($event, 'clearFilters', {}, 'view', '')">清除筛选</button>
+      </div>
+      <div v-if="total > 1" class="seg sm">
+        <template v-for="s in __list(sorts)" :key="s.v">
+          <button v-if="s.v != 'rel' || !browsing" type="button" class="seg-item" :class="{ on: sortBy == s.v || (browsing && sortBy == 'rel' && s.v == 'id') }"
+            @click="__e($event, 'setSort', { v: s.v }, 'view', '')">{{ s.t }}</button>
+        </template>
+      </div>
+    </div>
+
+    <div v-if="results?.length" class="sr-list">
+      <button v-for="(r, k) in __list(results)" :key="r.ID" type="button" class="result" :class="['r-' + BPColors?.[r.BPColor], { kb: k == active }]"
+        @click="__e($event, 'searchresultclick', { index: r.ID }, 'button', '')">
+        <img class="result-type" :src="'img/cartype' + (r.Type + 1) + '.gif'" alt="">
+        <span class="result-text">
+          <span class="result-brand" v-html="r.brandHtml"></span>
+          <span class="result-name" v-html="r.nameHtml"></span>
+          <span v-if="r.alt" class="result-alt" v-html="r.alt"></span>
+        </span>
+        <span class="result-meta">
+          <span class="result-rarity">{{ rarityNames[r.BPColor] }} · {{ typeNames[r.Type] }}</span>
+          <span class="result-pr" title="初始 PR → 满星满改 PR">PR <b>{{ r.pr0 }}</b> → <b>{{ r.pr1 }}</b></span>
+        </span>
+        <span v-if="r.tags.length" class="result-tags"><span v-for="t in r.tags" :key="t">{{ t }}</span></span>
+        <img class="result-logo" :src="ImageUrl + 'carbrands/' + r.brandLogo + '.png'" alt="" loading="lazy" @error="$event.target.style.visibility = 'hidden'">
+      </button>
+    </div>
+
+    <template v-if="faqResults?.length">
+      <div class="v-section-title">常见问题 <span class="muted">{{ faqResults.length }} 条</span></div>
       <div class="faq-list">
-        <details v-for="(item, k) in __list(faqlist)" :key="k" class="faq" :open="faqlist.length <= 3">
-          <summary>{{ item.q }}</summary>
-          <div class="faq-a">{{ item.a }}</div>
-          <div v-if="item.i?.length" class="faq-imgs">
-            <img v-for="(src, n) in __list(item.i)" :key="n" :src="ImageUrl + 'others/' + src" alt="" loading="lazy" @click="__preview(ImageUrl + 'others/' + src)">
-          </div>
-        </details>
+        <template v-for="(item, k) in __list(faqResults)" :key="item.q">
+          <details v-if="faqAll || k < 4" class="faq" :open="faqResults.length <= 2">
+            <summary v-html="item.qHtml"></summary>
+            <div class="faq-a" v-html="item.aHtml"></div>
+            <div v-if="item.i?.length" class="faq-imgs">
+              <img v-for="(src, n) in __list(item.i)" :key="n" :src="ImageUrl + 'others/' + src" alt="" loading="lazy" @click="__preview(ImageUrl + 'others/' + src)">
+            </div>
+          </details>
+        </template>
+        <button v-if="faqResults.length > 4" type="button" class="link-btn faq-more" @click="__e($event, 'toggleFaqAll', {}, 'view', '')">{{ faqAll ? '收起' : '显示全部 ' + faqResults.length + ' 条' }}</button>
       </div>
     </template>
 
-    <div v-if="!(resultdata?.length > 0) && !(faqlist?.length > 0)" class="empty-state small">
+    <div v-if="!results?.length && !faqResults?.length" class="empty-state small">
       <div class="empty-title">没有找到相关结果</div>
-      <div class="empty-sub">换个关键词，或者从下面的品牌开始找。</div>
+      <div class="empty-sub">试试更短的关键词、去掉部分筛选，或者从下面的品牌开始找。</div>
     </div>
   </template>
 
-  <template v-if="!searchCon || (!(resultdata?.length > 0) && !(faqlist?.length > 0))">
+  <!-- start page: history, recently viewed, brands -->
+  <template v-if="!query && !filters.r.length && !filters.t.length && !filters.g.length">
+    <div v-if="history?.length" class="s-block">
+      <div class="v-section-title">最近搜索 <button type="button" class="link-btn" @click="__e($event, 'clearHistory', {}, 'view', '')">清空</button></div>
+      <div class="hist">
+        <button v-for="h in __list(history)" :key="h" type="button" class="sf-chip" @click="__e($event, 'hisclick', { index: h }, 'view', '')">{{ h }}</button>
+      </div>
+    </div>
+    <div v-if="recent?.length" class="s-block">
+      <div class="v-section-title">最近查看 <button type="button" class="link-btn" @click="__e($event, 'clearRecent', {}, 'view', '')">清空</button></div>
+      <div class="sr-list compact">
+        <button v-for="r in __list(recent)" :key="r.ID" type="button" class="result" :class="'r-' + BPColors?.[r.BPColor]"
+          @click="__e($event, 'searchresultclick', { index: r.ID }, 'button', '')">
+          <img class="result-type" :src="'img/cartype' + (r.Type + 1) + '.gif'" alt="">
+          <span class="result-text"><span class="result-brand" v-html="r.brandHtml"></span><span class="result-name" v-html="r.nameHtml"></span></span>
+          <img class="result-logo" :src="ImageUrl + 'carbrands/' + r.brandLogo + '.png'" alt="" loading="lazy" @error="$event.target.style.visibility = 'hidden'">
+        </button>
+      </div>
+    </div>
     <div class="v-section-title">按品牌查找</div>
     <div class="brand-grid">
       <button v-for="(b, k) in __list(hitsearchdata)" :key="k" type="button" class="brand" @click="__e($event, 'hitbuttonclick', { index: b.displayname }, 'button', '')">
@@ -58,5 +115,6 @@
         <span>{{ b.displayname }}</span>
       </button>
     </div>
+    <p class="note s-tips">小技巧：可以空格分隔多个词（如「兰博 传奇」「911 gt3」），忽略大小写和符号（gtr = GT-R），英文拼错一个字母也能搜到；↑↓ 选择，Enter 打开，Esc 清空。</p>
   </template>
 </div>

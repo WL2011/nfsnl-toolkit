@@ -10,7 +10,7 @@
 | 地下 | `pages/underground/underground` | 重新设计（`views/pages/underground.html`） |
 | 活动 | `pages/activity/activity` | 重新设计（`views/pages/activity.html`） |
 | 赛车详情 | `pages/car/car` | 重新设计（`views/pages/car.html`） |
-| 搜索 | `pages/search/search` | 重新设计（`views/pages/search.html`） |
+| 搜索 | `pages/search/search` | 重新设计（`views/pages/search.html`），搜索逻辑升级在 `assets/search.js` |
 | 特殊赛信息 | `pages/se/se` | 重新设计（`views/pages/se.html`） |
 | 特殊赛零件计算器「肝它」 | `pages/separtsnotes/separtsnotes` | 重新设计（`views/pages/separtsnotes.html`） |
 | 赛车对比（地下赛 VS） | `pages/compare/compare` | 重新设计（`views/pages/compare.html`） |
@@ -35,6 +35,7 @@ python3 -m http.server 5173
 |---|---|
 | `index.html` | 入口 |
 | `assets/runtime.js` | 运行时：模块加载器、`wx.*` 接口兼容层、`Page()/App()`、路由与页面栈、选择器/轮播组件 |
+| `assets/search.js` | 搜索升级：多关键词排序匹配、别称/容错、筛选排序、最近搜索、键盘与 / 、Ctrl/⌘+K 快捷键 |
 | `assets/shell.js` | 桌面外壳：左侧导航、顶栏、弹窗/提示/看图 |
 | `assets/theme.css` | 设计变量（颜色、圆角、深色模式）+ 外壳样式 |
 | `assets/overrides.css` | 把原页面样式现代化的覆盖层 |
