@@ -1,0 +1,66 @@
+<!--
+  赛车 (pages/index/index) — desktop layout.
+  Same data/handlers as the original page: switchTab, ViewCrew, carNavi, ShowMySE, ToggleIndex, ScrollIntoView.
+-->
+<div class="v-page v-index">
+  <div class="v-toolbar">
+    <div class="seg" role="tablist" aria-label="赛车类别">
+      <button type="button" class="seg-item" :class="{ on: currentNavtab == -2 }" @click="__e($event, 'switchTab', { idx: 'collection' }, 'view', '')">
+        <span class="seg-star">★</span>收藏
+      </button>
+      <button type="button" class="seg-item" :class="{ on: currentNavtab == -1 }" @click="__e($event, 'switchTab', {}, 'view', '')">全部</button>
+      <button v-for="(name, i) in __list(Types)" :key="i" type="button" class="seg-item" :class="{ on: currentNavtab == i }" @click="__e($event, 'switchTab', { idx: i }, 'view', '')">
+        <img class="seg-img" :src="'img/cartype' + (i + 1) + '.gif'" alt="">{{ name }}
+      </button>
+    </div>
+    <div class="v-actions">
+      <button type="button" class="chip-btn" @click="__nav($event, '../search/search', 'navigate')">搜索</button>
+      <button type="button" class="chip-btn" @click="__e($event, 'ViewCrew', {}, 'view', '')">车队</button>
+    </div>
+  </div>
+
+  <div class="ticker">
+    <span class="ticker-tag">近期活动</span>
+    <x-swiper class="ticker-swiper" :autoplay="true" :circular="true" :interval="5000" :vertical="true">
+      <template v-if="msgList?.length > 0">
+        <wx-swiper-item v-for="(item, k) in __list(msgList)" :key="k">
+          <div class="ticker-item" :class="{ link: item.id || item.link }"
+            @click="item.id ? __nav($event, '../car/car?id=' + item.id, 'navigate') : (item.link ? __nav($event, item.link, 'navigate') : null)">{{ item.msg }}</div>
+        </wx-swiper-item>
+      </template>
+      <wx-swiper-item v-else><div class="ticker-item muted">暂无四天内活动</div></wx-swiper-item>
+    </x-swiper>
+  </div>
+
+  <div v-if="myVaultIDs?.length > 0" class="chip-row">
+    <span class="chip-row-label">我的特殊赛</span>
+    <button v-for="(id, k) in __list(myVaultIDs)" :key="k" type="button" class="chip" @click="__e($event, 'ShowMySE', { idx: id }, 'view', '')">
+      <img src="img/icon20_se.png" alt="">{{ cars?.[id]?.ShortName }}
+    </button>
+  </div>
+
+  <div v-if="currentNavtab == -1" class="chip-row">
+    <button type="button" class="chip-btn ghost" @click="__e($event, 'ToggleIndex', { idx: 'Cars' }, 'view', '')">{{ IndexSetting?.Cars ? '收起索引' : '快速定位' }}</button>
+    <template v-if="IndexSetting?.Cars">
+      <template v-for="(item, k) in __list(Cars)" :key="k">
+        <button v-if="k % 5 == 0" type="button" class="chip small" @click="__e($event, 'ScrollIntoView', { idx: k }, 'view', '')">{{ item.ShortName }}</button>
+      </template>
+    </template>
+  </div>
+
+  <div class="car-grid" v-into="toView">
+    <div v-if="currentNavtab == -2 && !(collectionlist?.length > 0)" class="empty-state">
+      <div class="empty-ico">★</div>
+      <div class="empty-title">还没有收藏的赛车</div>
+      <div class="empty-sub">进入赛车详情页，点亮底部的小星星即可收藏常看的赛车。</div>
+    </div>
+    <template v-for="(caritem, i) in __list(collectionlistCars)" :key="'c' + i">
+      <div v-if="currentNavtab == -2 && collectionlist?.length > 0" class="grid-cell" :id="'car_' + caritem?.ID"><include-template name="caritem" /></div>
+    </template>
+    <template v-for="(caritem, i) in __list(Cars)" :key="i">
+      <div v-if="caritem.Type == currentNavtab || currentNavtab == -1" class="grid-cell" :id="'car_' + i"><include-template name="caritem" /></div>
+    </template>
+  </div>
+
+
+</div>

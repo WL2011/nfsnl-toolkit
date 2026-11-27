@@ -1,0 +1,265 @@
+<!--
+  特殊赛信息 (pages/se/se) — desktop layout.
+  Original handlers: StartRace (肝它 → 零件计算器), carNavi, ToggleLanguage/HideLanguage, ToggleNewOld, imgclick, changeday,
+  GaragePickerChange/GarageColumnPickerChange, rankChanged, ShopBuyListPickerChange, ScrapBuyListPickerChange, SameDropsCarsClick.
+  (note / ViewRRNotesList led to removed pages and are not used.)
+-->
+<div class="v-page v-se">
+  <!-- ================= hero ================= -->
+  <div class="se-hero">
+    <div class="se-hero-cover" @click="__e($event, 'imgclick', {}, 'image', 'cover_img')">
+      <img :src="ImageUrl + 'specials/' + cur_id + '/cover.jpg'" alt="" @error="$event.target.closest('.se-hero-cover').classList.add('noimg')">
+    </div>
+    <div class="se-summary">
+      <div class="se-title-row">
+        <div class="se-title" :class="'r-' + BPColors?.[caritem?.BPColor]" title="查看赛车详情" @click="__e($event, 'carNavi', {}, 'view', 'carname')">
+          <span class="se-brand">{{ functions.getCarBrand(langMode, caritem || {}) }}</span>
+          <span class="se-name">{{ functions.getCarName(langMode, caritem || {}) }}</span>
+        </div>
+        <button type="button" class="gan-btn" :class="{ on: Ganging }" @click="__e($event, 'StartRace', {}, 'view', 'StartRace')">
+          {{ Ganging ? '正在肝 →' : '肝它！' }}
+        </button>
+      </div>
+      <div class="se-facts">
+        <span class="fact"><b>{{ se_item?.drops?.length }}</b> 天</span>
+        <span class="fact"><b>{{ se_item?.stagecount }}</b> 关</span>
+        <span class="fact">{{ SEType?.[se_item?.Type] }}</span>
+        <span class="se-toggles">
+          <button v-if="!HideLanguage" type="button" class="mini-toggle" title="切换车名语言 · 右键隐藏" @click="__e($event, 'ToggleLanguage', {}, 'view', '')" @contextmenu.prevent="__e($event, 'HideLanguage', {}, 'view', '')">车名 {{ langDisplays?.[langMode] }}</button>
+          <button type="button" class="mini-toggle" title="切换新/旧版材料图标" @click="__e($event, 'ToggleNewOld', {}, 'view', '')">材料图 {{ newOldDisplays?.[newOldMode] }}</button>
+        </span>
+      </div>
+      <div class="se-kits">
+        <span class="kits-k">购买套件</span>
+        <template v-for="(k, n) in [101, 102, 103, 104, 105, 106]" :key="n">
+          <span v-if="materialsCount?.[k] == 1" class="kit">{{ materials?.[newOldMode]?.[k]?.['name' + langIDs?.[langMode]] }}</span>
+        </template>
+      </div>
+
+      <div class="bp-block">
+        <div class="bp-lines">
+          <div class="bp-line get"><i></i>可获得 <b>{{ se_item?.BPstotal }}</b> 张 · {{ StarTotal }} 星 {{ BPLeftTotal }} 图<span v-if="BPUpLeft" class="muted">（差 {{ BPUpLeft }} 张升级）</span></div>
+          <div class="bp-line buy"><i></i>可购买 <b>{{ se_item?.BPsBuyLimit }}</b> 张 · {{ StarBuy }} 星 {{ BPLeftBuy }} 图</div>
+        </div>
+        <div class="bp-bar">
+          <template v-for="(n, i) in __list(caritem?.BPs)" :key="i">
+            <div v-if="n" class="bp-seg" :style="{ width: (n * 100 / caritem.BPsSum) + '%' }" :title="(i + 1) + ' 星：' + n + ' 张'"><span>{{ i + 1 }}★ {{ n }}</span></div>
+          </template>
+          <span class="bp-mark get" :style="{ left: (se_item?.BPstotal * 100 / caritem?.BPsSum) + '%' }"></span>
+          <span class="bp-mark buy" :style="{ left: ((se_item?.BPstotal + se_item?.BPsBuyLimit) * 100 / caritem?.BPsSum) + '%' }"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= calculators ================= -->
+  <div class="se-calcs">
+    <section class="panel">
+      <header class="panel-head static"><h3>提车计算器</h3></header>
+      <div class="panel-body">
+        <div class="calc-row">
+          <span class="calc-k">当前车库</span>
+          <x-picker mode="multiSelector" :range="GarageBP" :value="Index2D"
+            @change="__e($event, 'GaragePickerChange', {}, 'picker', 'BPBuyList')" @columnchange="__e($event, 'GarageColumnPickerChange', {}, 'picker', 'BPBuyList')">
+            <span class="select-like">{{ GarageBP?.[0]?.[Index2D?.[0]] }} {{ GarageBP?.[1]?.[Index2D?.[1]] }}</span>
+          </x-picker>
+        </div>
+        <div v-if="se_item?.RankedBPs" class="calc-row">
+          <span class="calc-k">上次完赛</span>
+          <div class="radio-seg" @change="__e($event, 'rankChanged', {}, 'radio-group', '')">
+            <label><input type="radio" class="wx-radio" name="se-rank" value="0" checked><span>未参赛</span></label>
+            <label><input type="radio" class="wx-radio" name="se-rank" :value="se_item.RankedBPs[0]"><span>一阶 {{ se_item.RankedBPs[0] }} 图</span></label>
+            <label><input type="radio" class="wx-radio" name="se-rank" :value="se_item.RankedBPs[0] + se_item.RankedBPs[1]"><span>二阶 {{ se_item.RankedBPs[0] + se_item.RankedBPs[1] }} 图</span></label>
+          </div>
+        </div>
+        <div v-if="se_item?.RankedBPs" class="note">本次参赛不再重复获得上次已获得的蓝图</div>
+        <div class="calc-row">
+          <span class="calc-k">商店购买</span>
+          <x-picker :range="ShopBuyList" :value="ShopBuyList_index" @change="__e($event, 'ShopBuyListPickerChange', {}, 'picker', 'BPBuyList')">
+            <span class="select-like">{{ ShopBuyList?.[ShopBuyList_index] }}</span>
+          </x-picker>
+          <span class="muted">{{ se_item?.BPPrice }} 金 / 5 图（{{ se_item?.BPPrice / 5 }} 金/图）</span>
+        </div>
+        <div class="calc-result">
+          <div class="cr-k">完赛提车</div>
+          <div class="cr-v"><b>{{ WillHaveStar }}</b> 星 <b>{{ WillHaveBPs }}</b> 图</div>
+          <div v-if="scrapCount > 0" class="cr-s">溢出 {{ scrapCount }} 图 → {{ scrap == 0 ? '?' : scrap }} 废料</div>
+        </div>
+        <div class="bp-bar">
+          <template v-for="(n, i) in __list(caritem?.BPs)" :key="i">
+            <div v-if="n" class="bp-seg" :style="{ width: (n * 100 / caritem.BPsSum) + '%' }"><span>{{ i + 1 }}★</span></div>
+          </template>
+          <span class="bp-mark get" title="当前车库" :style="{ left: (CurrentHave1 * 100 / caritem?.BPsSum) + '%' }"></span>
+          <span class="bp-mark buy" title="完赛后" :style="{ left: (((TotalHave + se_item?.BPstotal) > caritem?.BPsSum ? caritem?.BPsSum : (TotalHave + se_item?.BPstotal)) * 100 / caritem?.BPsSum) + '%' }"></span>
+        </div>
+        <div class="tips-line">
+          <span v-if="caritem?.marketSold > 0">黑市售卖 {{ caritem.marketSold }} 金/首图</span>
+          <span v-if="caritem?.giftSold">金块车包 {{ caritem.giftSold[0] }} 金 / {{ caritem.giftSold[1] }} 图（{{ giftSoldPrice }} 金/张）</span>
+        </div>
+        <div v-if="caritem?.Waste != 0" class="calc-row">
+          <span class="calc-k">废料计算</span>
+          <x-picker :range="ScrapBuyList" :value="ScrapBuyList_index" @change="__e($event, 'ScrapBuyListPickerChange', {}, 'picker', 'BPBuyList')">
+            <span class="select-like">{{ ScrapBuyList?.[ScrapBuyList_index] }}</span>
+          </x-picker>
+          <span class="muted">{{ scrapEach }} 废料/张</span>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ================= stages ================= -->
+  <section class="panel stages-panel">
+    <header class="panel-head static"><h3>关卡信息</h3><span class="panel-en">STAGES</span></header>
+    <div class="panel-body">
+      <div class="day-tabs">
+        <template v-for="d in [0, 1, 2, 3, 4, 5, 6]" :key="d">
+          <button v-if="d < se_days" type="button" class="day-tab" :class="{ on: day_index == d }" @click="__e($event, 'changeday', { idx: d }, 'view', 'day' + d)">
+            <span class="day-n">第 {{ d + 1 }} 天</span><span class="day-pr">{{ chapter_pr?.[d] || '' }}</span>
+          </button>
+        </template>
+      </div>
+      <div class="stage-grid">
+        <template v-for="(item, i) in __list(stages)" :key="i">
+          <div v-if="i < stages.length - 1" class="stg" :class="{ rec: item.recommanded }">
+            <div class="stage-top">
+              <span class="stage-no">{{ day_index * 1 + 1 }}-{{ i + 1 }}</span>
+              <span v-if="item.pr" class="stage-pr">PR {{ item.pr }}</span>
+              <img v-if="item.recommanded" class="stage-rec" src="img/icon20_rr.png" title="推荐重跑" alt="">
+            </div>
+            <img class="stage-img" :src="newOldMode == 0 ? (ImageUrl + 'materialimgs_new/' + item.drop + '.gif') : (ImageUrl + 'materialimgs/' + item.drop + '.png')" alt="" loading="lazy">
+            <div class="stage-mat">{{ materials?.[newOldMode]?.[item.drop]?.['name' + langIDs?.[langMode]] }}</div>
+            <div class="stage-where">
+              <template v-for="(g, k) in __list(se_item?.golds)" :key="'g' + k">
+                <span v-if="(item.drop == 999 || item.drop == 998) && g[0] == day_index * 1 + 1 && g[1] == i + 1" class="where gold">{{ g[2] }}</span>
+              </template>
+              <span v-for="(w, k) in __list(materialsChapter?.[item.drop])" :key="k" class="where">{{ w }}</span>
+            </div>
+            <div v-if="item.rr?.length > 0" class="stage-rr">
+              <img v-for="(rr, k) in __list(item.rr)" :key="k" :src="newOldMode == 0 ? (ImageUrl + 'materialimgs_new/' + rr + '.gif') : (ImageUrl + 'materialimgs/' + rr + '.png')" alt="">
+            </div>
+          </div>
+        </template>
+        <div class="stg reward">
+          <div class="stage-top"><span class="stage-no">当日奖励</span></div>
+          <div v-if="stages?.[stages.length - 1]?.day_drops" class="reward-kits">
+            <span v-for="(c, maID) in stages[stages.length - 1].day_drops" :key="maID" class="kit">{{ materials?.[newOldMode]?.[maID]?.['name' + langIDs?.[langMode]] }}</span>
+          </div>
+          <div class="reward-items">
+            <span v-if="stages?.[stages.length - 1]?.awards?.[0]"><img src="img/bp2.gif" alt="">× {{ stages[stages.length - 1].awards[0] }}</span>
+            <span v-if="stages?.[stages.length - 1]?.awards?.[1]"><img src="img/materials/999.gif" alt="">× {{ stages[stages.length - 1].awards[1] }}</span>
+            <span v-if="stages?.[stages.length - 1]?.awards?.[2]"><img src="img/materials/998.gif" alt="">× {{ stages[stages.length - 1].awards[2] }}</span>
+            <span v-if="stages?.[stages.length - 1]?.awards?.[3]"><img src="img/icon20_waste.png" alt="">× {{ stages[stages.length - 1].awards[3] }}</span>
+          </div>
+        </div>
+      </div>
+      <p class="note">材料下方的 “6-9、7-11” 是该材料的重跑掉落关卡；<img class="ico" src="img/icon20_rr.png" alt=""> 为推荐重跑关卡。</p>
+    </div>
+  </section>
+
+  <div class="car-cols">
+    <!-- ================= main: parts ================= -->
+    <div class="car-col">
+      <section class="panel">
+        <header class="panel-head static"><h3>零件升级信息</h3><span class="panel-en">PARTS</span></header>
+        <div class="panel-body tbl-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th rowspan="2">零件星级</th><th colspan="3">本阶升级需要</th><th colspan="3">累计需要</th></tr>
+              <tr><th class="m-g">灰</th><th class="m-u">绿</th><th class="m-k">套件</th><th class="m-g">灰</th><th class="m-u">绿</th><th class="m-k">套件</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="(item, i) in __list(se_item?.parts)" :key="i">
+                <td><span class="part-star" :class="'r-' + PartColorIndex?.[item[0]]">{{ PartColor?.[item[0]] }} {{ starstringlist?.[item[1]] }}</span></td>
+                <td>{{ part_modes?.[item[2]]?.[0] }}</td><td>{{ part_modes?.[item[2]]?.[1] }}</td><td>{{ part_modes?.[item[2]]?.[2] }}</td>
+                <td class="sum">{{ partModeSum?.[i]?.[0] }}</td><td class="sum">{{ partModeSum?.[i]?.[1] }}</td><td class="sum">{{ partModeSum?.[i]?.[2] }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel">
+        <header class="panel-head static"><h3>材料需求</h3><span class="panel-en">MATERIALS</span></header>
+        <div class="panel-body tbl-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th rowspan="2">材料</th>
+                <th colspan="3">{{ PartColor?.[se_item?.parts?.[se_item.parts.length - 2]?.[0]] }}{{ se_item?.parts?.[se_item.parts.length - 2]?.[1] }} 升 {{ PartStatusNext?.['' + se_item?.parts?.[se_item.parts.length - 2]?.[0] + se_item?.parts?.[se_item.parts.length - 2]?.[1]] }}</th>
+                <th colspan="3">{{ PartColor?.[se_item?.parts?.[se_item.parts.length - 1]?.[0]] }}{{ se_item?.parts?.[se_item.parts.length - 1]?.[1] }} 升 {{ PartStatusNext?.['' + se_item?.parts?.[se_item.parts.length - 1]?.[0] + se_item?.parts?.[se_item.parts.length - 1]?.[1]] }}</th>
+              </tr>
+              <tr><th>需要</th><th>关卡获得</th><th>需购买</th><th>需要</th><th>关卡获得</th><th>需购买</th></tr>
+            </thead>
+            <tbody>
+              <template v-for="(item, i) in materialsCount" :key="i">
+                <tr v-if="i < 900">
+                  <td class="mat-cell" :class="i < 20 ? 'm-g' : (i < 30 ? 'm-u' : 'm-k')">
+                    <img :src="newOldMode == 0 ? (ImageUrl + 'materialimgs_new/' + i + '.gif') : (ImageUrl + 'materialimgs/' + i + '.png')" alt="" loading="lazy">{{ materials?.[newOldMode]?.[i]?.['name' + langIDs?.[langMode]] }}
+                  </td>
+                  <td>{{ partModeSum?.[partModeSum.length - 2]?.[i < 20 ? 0 : (i < 30 ? 1 : 2)] }}</td>
+                  <td>{{ item }}</td>
+                  <td class="buy" :class="{ zero: partModeSum?.[partModeSum.length - 2]?.[i < 20 ? 0 : (i < 30 ? 1 : 2)] - item <= 0 }">{{ partModeSum?.[partModeSum.length - 2]?.[i < 20 ? 0 : (i < 30 ? 1 : 2)] - item }}</td>
+                  <td>{{ partModeSum?.[partModeSum.length - 1]?.[i < 20 ? 0 : (i < 30 ? 1 : 2)] }}</td>
+                  <td>{{ item }}</td>
+                  <td class="buy" :class="{ zero: partModeSum?.[partModeSum.length - 1]?.[i < 20 ? 0 : (i < 30 ? 1 : 2)] - item <= 0 }">{{ partModeSum?.[partModeSum.length - 1]?.[i < 20 ? 0 : (i < 30 ? 1 : 2)] - item }}</td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <!-- ================= side ================= -->
+    <div class="car-col side">
+      <section v-if="special" class="panel">
+        <header class="panel-head static"><h3>赛事特有 NPC</h3></header>
+        <div class="panel-body tight npc-grid">
+          <template v-for="(item, index) in npcs" :key="index">
+            <div v-if="item[1] == cur_id" class="npc">
+              <img :src="ImageUrl + 'npcs/' + index + '.jpg'" alt="" loading="lazy">
+              <span>{{ item[0] }}</span>
+            </div>
+          </template>
+          <div class="note full">该部分由 @范特西 提供</div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <header class="panel-head static"><h3>关卡掉落相似</h3></header>
+        <div class="panel-body tight">
+          <div v-if="SameDropsCars?.length > 0" class="car-chips">
+            <button v-for="(item, k) in __list(SameDropsCars)" :key="k" type="button" class="car-chip" :class="'r-' + BPColors?.[cars?.[item[0]]?.BPColor]" @click="__e($event, 'SameDropsCarsClick', { idx: item[0] }, 'button', '')">{{ cars?.[item[0]]?.ShortName }} <span class="chip-pct">{{ item[1] }}%</span></button>
+          </div>
+          <div v-else class="muted">暂无关卡掉落相似度大于 79% 的赛车</div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <header class="panel-head static"><h3>相同零件需求</h3><span v-if="SamePartsCars?.length > 0" class="panel-count">{{ SamePartsCars.length }} 部</span></header>
+        <div class="panel-body tight">
+          <div v-if="SamePartsCars?.length > 0" class="car-chips">
+            <button v-for="(item, k) in __list(SamePartsCars)" :key="k" type="button" class="car-chip" :class="'r-' + BPColors?.[cars?.[item]?.BPColor]" @click="__e($event, 'SameDropsCarsClick', { idx: item }, 'button', '')">{{ cars?.[item]?.ShortName }}</button>
+          </div>
+          <div v-else class="muted">暂无相同零件需求的赛车</div>
+        </div>
+      </section>
+
+      <section v-if="selist?.length > 0" class="panel">
+        <header class="panel-head static"><h3>开启时间</h3><span class="panel-count">{{ selist.length }} 次</span></header>
+        <div class="panel-body tight scrolly">
+          <div v-for="(seitem, i) in __list(selist)" :key="i" class="tl-item" :class="{ first: i == 0 }">
+            <div class="tl-date">{{ seitem[0] }}</div>
+            <div class="tl-main">{{ seitem[2] }} 天赛 · {{ seitem[3] ? '唯一赛事' : '第' + seitem[4] + '顺位' }}</div>
+            <div class="tl-sub">『{{ seitem[1] }}』</div>
+          </div>
+        </div>
+      </section>
+
+      <section v-if="stories" class="panel">
+        <header class="panel-head static"><h3>剧情介绍</h3></header>
+        <div class="panel-body tight story">{{ stories }}</div>
+      </section>
+    </div>
+  </div>
+</div>

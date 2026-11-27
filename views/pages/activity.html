@@ -1,0 +1,174 @@
+<!--
+  活动 (pages/activity/activity) — desktop layout.
+  Original handlers: bigswitchTab, carNavi (click), carNavix (right click → car page), ScrollIntoView1/2/3, imgclick, imgclickx.
+-->
+<div class="v-page v-activity" v-scrolltop="currentNavName">
+  <div class="v-toolbar">
+    <div class="seg" role="tablist">
+      <button v-for="(name, idx) in __list(bignavTab)" :key="idx" type="button" class="seg-item" :class="{ on: currentNavName == idx }"
+        @click="__e($event, 'bigswitchTab', { idx: idx }, 'view', '')">{{ name }}</button>
+    </div>
+  </div>
+
+  <!-- ================= 最新活动日程 ================= -->
+  <template v-if="currentNavName == 0">
+    <div class="act-wrap" v-into="toView">
+      <table class="act-table">
+        <thead><tr><th class="c-date">日期</th><th class="c-wd">星期</th><th class="c-type">类型</th><th>用车</th></tr></thead>
+        <tbody>
+          <tr v-for="(actitem, k) in __list(activity)" :key="k" :id="actitem.IsCurWeek ? 'CurWeekTable' : ''"
+            :class="{ passed: actitem.IsPassed, weekend: actitem.IsWeekend, cur: actitem.IsCurWeek }">
+            <td class="c-date">{{ actitem.Date }}</td>
+            <td class="c-wd">周{{ actitem.weekdaystr }}</td>
+            <td class="c-type"><span class="type-badge" :class="'t' + actitem.acttype">{{ actitem.typestr }}</span></td>
+            <td v-if="actitem.acttype == 1" class="c-cars">
+              <div class="fb-list">
+                <template v-for="(item, i) in __list(actitem.car)" :key="i">
+                  <button v-if="ses?.[item]" type="button" class="car-link se" @click="__nav($event, '../se/se?id=' + item, 'navigate')">{{ (actitem.car.length > 1 ? (i + 1) + '. ' : '') + cars?.[item]?.ShortName }}</button>
+                  <span v-else class="car-plain">{{ (actitem.car.length > 1 ? (i + 1) + '. ' : '') + cars?.[item]?.ShortName }}</span>
+                </template>
+              </div>
+            </td>
+            <td v-else class="c-cars">
+              <div class="car-cell">
+                <button v-if="actitem.acttype < 3" type="button" class="car-link" :class="{ se: actitem.acttype == 0 && ses?.[actitem.car], notfull: actitem.acttype == 2 && MyGarage?.[actitem.car]?.bpstatus }"
+                  :title="actitem.acttype == 0 && ses?.[actitem.car] ? '查看特殊赛信息 · 右键查看赛车' : '查看赛车'"
+                  @click="__e($event, 'carNavi', { idx: actitem.car, idy: actitem.acttype }, 'view', '')"
+                  @contextmenu.prevent="__e($event, 'carNavix', { idx: actitem.car, idy: actitem.acttype }, 'view', '')">{{ cars?.[actitem.car]?.ShortName }}</button>
+                <span v-else class="car-plain">{{ cars?.[actitem.car]?.ShortName }}</span>
+                <span v-if="actitem.LastDays" class="days">{{ actitem.LastDays }} 天</span>
+                <img v-if="actitem.InVault" class="ico" src="img/vault.png" title="在赛事库中" alt="">
+                <template v-if="actitem.acttype == 2 && MyGarage?.[actitem.car]?.bpstatus">
+                  <span class="garage-stars" title="我的车库：星级 / 蓝图">{{ MyGarage[actitem.car].starstring || (actitem.car == 3 ? '★★☆☆☆' : initcarstars?.[cars?.[actitem.car]?.Type]) }} {{ MyGarage[actitem.car].bpstatus }}</span>
+                  <img class="ico" src="img/icon20_rr.png" title="车库中该车未满，可参加该重跑" alt="">
+                </template>
+                <img v-if="actitem.acttype == 2 && MyGarage?.[actitem.car] && !MyGarage?.[actitem.car]?.bpstatus" class="ico" src="img/crown.png" title="车库中该车蓝图已满" alt="">
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="legend-card">
+      <div class="legend-title">说明</div>
+      <div class="legend-grid">
+        <div><span class="type-badge t0">特殊赛</span>该版本的新车提车赛事</div>
+        <div><span class="type-badge t1">闪回</span>该版本的旧车闪回提车赛事（列表）</div>
+        <div><span class="type-badge t2">重跑</span>相应车的蓝图重跑活动</div>
+        <div><span class="type-badge t3">双倍</span>双倍声望，一般 08:00 开启，48 小时</div>
+        <div><span class="type-badge t4">全局</span>调试赛全局通行，一般 08:00 开启，24 小时</div>
+        <div><span class="type-badge t5">货箱</span>旧版本蓝图货箱活动，类似五连金箱子必出</div>
+        <div><span class="type-badge t6">额外燃油</span>旧版本活动，活动期间燃油上限 +15</div>
+        <div><span class="lg-cur">本周</span>高亮的是当周活动</div>
+        <div><span class="car-link se lg">GT-R34</span>点击查看特殊赛信息，右键查看赛车</div>
+        <div><img class="ico" src="img/vault.png" alt="">该车在赛事库中</div>
+        <div><span class="garage-stars">★☆ 5/50</span>我的车库中该车的星级与蓝图数量</div>
+        <div><img class="ico" src="img/icon20_rr.png" alt="">车库中该车未满，可参加该重跑</div>
+        <div><img class="ico" src="img/crown.png" alt="">车库中该车蓝图已满</div>
+      </div>
+    </div>
+  </template>
+
+  <!-- ================= 以往活动列表 ================= -->
+  <template v-if="currentNavName == 1">
+    <div class="jump-row">
+      <span class="jump-label">跳转到版本</span>
+      <template v-for="(item, index) in __list(PassedActivity)" :key="index">
+        <button v-if="index >= 1 && index % 3 == 0" type="button" class="chip small" @click="__e($event, 'ScrollIntoView1', { idx: index, idy: 'act_index_' }, 'view', '')">v{{ item.ver }}</button>
+      </template>
+    </div>
+    <div class="ver-grid" v-into="toView1">
+      <template v-for="(ver, i) in __list(PassedActivity)" :key="i">
+        <section v-if="i >= 1" class="ver-card" :id="'act_index_' + i">
+          <header class="ver-head"><span class="ver-tag">v{{ ver.ver }}</span>版本主要活动</header>
+          <table class="act-table compact">
+            <tbody>
+              <tr v-for="(actitem, k) in __list(ver.acts)" :key="k" :class="{ weekend: actitem.IsWeekend }">
+                <td class="c-date">{{ actitem.Date }}</td>
+                <td class="c-wd">周{{ actitem.weekdaystr }}</td>
+                <td class="c-type"><span class="type-badge" :class="'t' + actitem.type">{{ actitem.typestr }}</span></td>
+                <td v-if="actitem.type == 1" class="c-cars">
+                  <div class="fb-list">
+                    <template v-for="(item, j) in __list(actitem.cars)" :key="j">
+                      <button v-if="ses?.[item]" type="button" class="car-link se" @click="__nav($event, '../se/se?id=' + item, 'navigate')">{{ (actitem.cars.length > 1 ? (j + 1) + '. ' : '') + cars?.[item]?.ShortName }}</button>
+                      <span v-else class="car-plain">{{ (actitem.cars.length > 1 ? (j + 1) + '. ' : '') + cars?.[item]?.ShortName }}</span>
+                    </template>
+                  </div>
+                </td>
+                <td v-else class="c-cars">
+                  <button v-if="actitem.type < 3" type="button" class="car-link" :class="{ se: actitem.type == 0 && ses?.[actitem.cars] }"
+                    @click="__e($event, 'carNavi', { idx: actitem.cars, idy: actitem.type }, 'view', '')"
+                    @contextmenu.prevent="__e($event, 'carNavix', { idx: actitem.cars, idy: actitem.type }, 'view', '')">{{ cars?.[actitem.cars]?.ShortName }}</button>
+                  <span v-else class="car-plain">{{ cars?.[actitem.cars]?.ShortName }}</span>
+                  <span v-if="actitem.days" class="days">{{ actitem.days }} 天</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+      </template>
+    </div>
+  </template>
+
+  <!-- ================= 即将登场新车 ================= -->
+  <template v-if="currentNavName == 2">
+    <div v-if="!(new_cars?.length > 0)" class="empty-state"><div class="empty-title">暂无即将登场的新车</div></div>
+    <div class="newcar-grid">
+      <div v-for="(item, index) in __list(new_cars)" :key="index" class="newcar">
+        <img class="newcar-logo" :src="ImageUrl + 'carbrands/' + new_brands?.[index] + '.png'" alt="" loading="lazy">
+        <div class="newcar-name">{{ item }}</div>
+      </div>
+    </div>
+  </template>
+
+  <!-- ================= 所有特殊赛列表 ================= -->
+  <template v-if="currentNavName == 3">
+    <div class="jump-row">
+      <span class="jump-label">跳转到版本</span>
+      <template v-for="(item, index) in specialeventX" :key="index">
+        <button v-if="index % 3 == 0" type="button" class="chip small" @click="__e($event, 'ScrollIntoView2', { idx: index, idy: 'se_index_' }, 'view', '')">v{{ item.ver }}</button>
+      </template>
+    </div>
+    <div class="se-list" v-into="toView2">
+      <section v-for="(seitem, ver) in specialeventX" :key="ver" class="se-card" :id="'se_index_' + ver">
+        <div class="se-cover" @click="__e($event, 'imgclick', { src: ImageUrl + 'vercover/' + seitem.ver + '.jpg' }, 'image', 'cover_img')">
+          <img :src="ImageUrl + 'vercover/' + seitem.ver + '.jpg'" alt="" loading="lazy" @error="$event.target.closest('.se-card').classList.add('nocover')">
+        </div>
+        <div class="se-body">
+          <header class="ver-head"><span class="ver-tag">v{{ seitem.ver }}</span>{{ seitem.se?.Date }}</header>
+          <div v-for="(seevent, k) in __list(seitem.se?.events)" :key="k" class="se-event">
+            <div class="se-date">{{ seevent.Date }}</div>
+            <div class="se-cars">
+              <div v-for="(secar, i) in __list(seevent.events)" :key="i" class="se-car">
+                <button type="button" class="car-link" :class="{ first: seevent.firstse == secar }"
+                  @click="__e($event, 'carNavi', { idx: cars?.[secar]?.ID, idy: 0 }, 'view', '')">
+                  <template v-if="seevent.events?.[1]">{{ i + 1 }}. </template>{{ langMode == 0 ? cars?.[functions.abs(secar)]?.Name2052 : (langMode == 1 ? cars?.[functions.abs(secar)]?.Name3076 : (langMode == 3 ? cars?.[functions.abs(secar)]?.Name1041 : cars?.[functions.abs(secar)]?.Name)) }}
+                </button>
+                <span class="se-info">{{ seNames?.[secar]?.[1] }} 天『{{ seNames?.[secar]?.[0] }}』</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </template>
+
+  <!-- ================= 游戏版本信息 ================= -->
+  <template v-if="currentNavName == 4">
+    <div class="jump-row">
+      <span class="jump-label">跳转到版本</span>
+      <button v-for="(item, index) in versinfo" :key="index" type="button" class="chip small" @click="__e($event, 'ScrollIntoView3', { idx: sevents?.[index]?.Date, idy: 'info_index_' }, 'view', '')">v{{ index }}</button>
+    </div>
+    <div class="vinfo-list" v-into="toView3">
+      <section v-for="(item, ver) in versinfo" :key="ver" class="vinfo-card" :id="'info_index_' + sevents?.[ver]?.Date">
+        <div class="vinfo-pic" @click="__e($event, 'imgclickx', { src: ImageUrl + 'verpic/' + ver + '.jpg' }, 'image', 'cover_img_small')">
+          <img :src="ImageUrl + 'verpic/' + ver + '.jpg'" alt="" loading="lazy" @error="$event.target.closest('.vinfo-pic').style.display = 'none'">
+        </div>
+        <div class="vinfo-body">
+          <header class="ver-head"><span class="ver-tag">v{{ ver }}</span>{{ sevents?.[ver]?.Date }}</header>
+          <div class="vinfo-text">{{ item }}</div>
+        </div>
+      </section>
+    </div>
+  </template>
+</div>

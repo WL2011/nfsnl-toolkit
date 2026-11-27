@@ -1,0 +1,84 @@
+<!--
+  Car card — replaces the mini program template "caritem".
+  Rendered inside the page scope; uses the same data the original template received:
+  caritem, BPColors, comparelistdisplay, langMode, tempSumBP, tempSumMech, SumBPID, SumMechID, owndate, ImageUrl, index
+  Handlers are the original page methods (ToggleCompare, carNavi, CopyCarName, OnNumClick, calcBPs, calcMechs).
+-->
+<article class="car-card" :class="'r-' + (BPColors?.[caritem?.BPColor] || 'common')">
+  <header class="cc-head">
+    <div class="cc-title" title="点击查看详情 · 右键复制车名"
+      @click="__e($event, 'carNavi', { idx: caritem?.ID, idy: (langMode == 0 ? caritem?.Name2052 : (langMode == 1 ? caritem?.Name3076 : (langMode == 3 ? caritem?.Name1041 : caritem?.Name))) }, 'text', 'carname')"
+      @contextmenu.prevent="__e($event, 'CopyCarName', { idx: caritem?.ID, idy: (langMode == 0 ? caritem?.Name2052 : (langMode == 1 ? caritem?.Name3076 : (langMode == 3 ? caritem?.Name1041 : caritem?.Name))) }, 'text', 'carname')">
+      <span class="cc-brand">{{ functions.getCarBrand(langMode, caritem || {}) }}</span>
+      <span class="cc-name">{{ functions.getCarName(langMode, caritem || {}) }}</span>
+    </div>
+    <img class="cc-logo" :src="ImageUrl + 'carbrands/' + (caritem?.brand || 'BMW') + '.png'" alt="" loading="lazy">
+  </header>
+
+  <div class="cc-badges">
+    <span class="cc-rarity">{{ { common: '普通', uncommon: '罕见', rare: '稀有', epic: '史诗', legendary: '传奇' }[BPColors?.[caritem?.BPColor]] || '' }}</span>
+    <img class="cc-badge" :src="'img/cartype' + ((caritem?.Type + 1) || 1) + '.gif'" title="赛车类别" alt="">
+    <img v-if="caritem?.Under" class="cc-badge" src="img/icon20_rival.png" title="有地下赛指定用车" alt="">
+    <img v-if="caritem?.inPC" class="cc-badge" src="img/icon20_premiumcrate.png" title="码头金箱子里能开到" alt="">
+    <img v-if="caritem?.HasSEs" class="cc-badge" src="img/icon20_se.png" title="有特殊赛" alt="">
+    <img v-if="caritem?.HasSEs && !caritem?.inVault && caritem?.ID != 31" class="cc-badge" src="img/fb.png" title="可能出现在未来闪回列表中" alt="">
+    <img v-if="caritem?.hasNeon" class="cc-badge" src="img/icon20_neon.png" title="可设置霓虹灯改装" alt="">
+    <img v-if="caritem?.inVault" class="cc-badge" src="img/vault.png" title="出现在保存库赛事中" alt="">
+    <img v-if="caritem?.HasSePartData" class="cc-badge" src="img/flag.gif" title="收录了特殊赛详细信息" alt="">
+    <img v-if="caritem?.CanWasteBuy" class="cc-badge" src="img/icon20_waste.png" title="可在汽车工坊用废料兑换蓝图" alt="">
+    <img v-if="caritem?.fuels3" class="cc-badge" src="img/icon20_3fuel.png" title="“三油车”之一" alt="">
+    <img v-if="caritem?.IsCart" class="cc-badge" src="img/icon20_cart.png" title="“人民币车”之一" alt="">
+    <img v-if="caritem?.crew" class="cc-badge" src="img/crew.gif" title="可通过车队箱子开出" alt="">
+    <img v-if="caritem?.colorIndex?.length > 0 && !caritem?.colorIndex2" class="cc-badge" src="img/icon20_emp.gif" title="可改装" alt="">
+    <img v-if="caritem?.colorIndex > 10000 && !caritem?.colorIndex2" class="cc-badge" src="img/icon20_empf.gif" title="法拉利/Rimac 专属色" alt="">
+    <img v-if="caritem?.colorIndex2?.length > 0" class="cc-badge" src="img/icon20_emp2.gif" title="可改装，并拥有特殊赛涂装" alt="">
+    <img v-if="caritem?.colorIndex == -1" class="cc-badge" src="img/icon20_emp_no.gif" title="不可改装" alt="">
+    <img v-if="caritem?.HasSeries" class="cc-badge" src="img/icon20_sr.png" title="有系列赛" alt="">
+    <span v-if="owndate" class="cc-owndate">{{ owndate }}</span>
+  </div>
+
+  <div class="cc-scroll">
+    <table class="cc-prog">
+      <thead>
+        <tr>
+          <th class="lbl" @click="__e($event, 'OnNumClick', { idx: 0 }, 'view', '')">星级</th>
+          <th v-for="(BP, j) in __list(caritem?.MechExps)" :key="j" @click="__e($event, 'OnNumClick', { idx: j + 1 }, 'view', '')">{{ j + 1 }}<i>★</i></th>
+          <th class="sum" @click="__e($event, 'OnNumClick', { idx: 9 }, 'text', '')">Σ</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="row-bp">
+          <th class="lbl" title="各级升级蓝图需要数量">图纸</th>
+          <td v-for="(BP, j) in __list(caritem?.BPs)" :key="j" :class="{ active: SumBPID?.[j] }" @click="__e($event, 'calcBPs', { idx: j, idy: BP }, 'text', '')">{{ BP || '' }}</td>
+          <td class="sum" :class="{ active: tempSumBP }">{{ tempSumBP || caritem?.SumBPs || '' }}</td>
+        </tr>
+        <tr class="row-mech">
+          <th class="lbl" title="各级升级得到机修">机修</th>
+          <td v-for="(exp, j) in __list(caritem?.MechExps)" :key="j" :class="{ active: SumMechID?.[j], odd: caritem?.BPs?.[j] * 10 != caritem?.MechExps?.[j] }" @click="__e($event, 'calcMechs', { idx: j, idy: exp }, 'text', '')">{{ exp || '' }}</td>
+          <td class="sum" :class="{ active: tempSumMech }">{{ tempSumMech || caritem?.SumMechs || '' }}</td>
+        </tr>
+        <tr class="row-pr">
+          <th class="lbl" title="相应星级的最高 PR">PR上限</th>
+          <td v-for="(pr, j) in __list(caritem?.MaxPRList)" :key="j">{{ pr || '' }}</td>
+          <td class="sum"></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <table class="cc-stats" :class="{ link: index }" @click="index && __nav($event, '../car/car?id=' + caritem?.ID, 'navigate')">
+    <thead>
+      <tr><th class="lbl"></th><th>极速</th><th>加速</th><th>氮气</th><th class="pr">PR</th></tr>
+    </thead>
+    <tbody>
+      <tr><th class="lbl">初始</th><td>{{ caritem?.Orig?.[0] || '' }}</td><td>{{ caritem?.Orig?.[1] || '' }}</td><td>{{ caritem?.Orig?.[2] || '' }}</td><td class="pr">{{ caritem?.PR?.[0] || '' }}</td></tr>
+      <tr v-if="caritem?.Max3Star?.[0]" class="sub"><th class="lbl">三满</th><td>{{ caritem.Max3Star[0] }}</td><td>{{ caritem.Max3Star[1] }}</td><td>{{ caritem.Max3Star[2] }}</td><td class="pr">{{ caritem?.PR3?.[0] }}</td></tr>
+      <tr v-if="caritem?.Max4Star?.[0]" class="sub"><th class="lbl">四满</th><td>{{ caritem.Max4Star[0] }}</td><td>{{ caritem.Max4Star[1] }}</td><td>{{ caritem.Max4Star[2] }}</td><td class="pr">{{ caritem?.Type < 1 ? caritem?.PR3?.[1] : caritem?.PR3?.[0] }}</td></tr>
+      <tr v-if="caritem?.Max5Star?.[0]" class="sub"><th class="lbl">五满</th><td>{{ caritem.Max5Star[0] }}</td><td>{{ caritem.Max5Star[1] }}</td><td>{{ caritem.Max5Star[2] }}</td><td class="pr">{{ caritem?.Type < 3 ? caritem?.PR3?.[1] : caritem?.PR3?.[0] }}</td></tr>
+      <tr v-if="caritem?.Max6Star?.[0]" class="sub"><th class="lbl">六满</th><td>{{ caritem.Max6Star[0] }}</td><td>{{ caritem.Max6Star[1] }}</td><td>{{ caritem.Max6Star[2] }}</td><td class="pr">{{ caritem?.Max5Star ? caritem?.PR3?.[1] : caritem?.PR3?.[0] }}</td></tr>
+      <tr v-if="caritem?.Max7Star?.[0]" class="sub"><th class="lbl">七满</th><td>{{ caritem.Max7Star[0] }}</td><td>{{ caritem.Max7Star[1] }}</td><td>{{ caritem.Max7Star[2] }}</td><td class="pr">{{ caritem?.Max7Star ? caritem?.PR3?.[2] : caritem?.PR3?.[1] }}</td></tr>
+      <tr class="max"><th class="lbl">满星</th><td>{{ caritem?.Max?.[0] || '' }}</td><td>{{ caritem?.Max?.[1] || '' }}</td><td>{{ caritem?.Max?.[2] || '' }}</td><td class="pr">{{ caritem?.PR?.[1] || '' }}</td></tr>
+      <tr class="tuned"><th class="lbl">满调</th><td>{{ caritem?.Tuned?.[0] || '' }}</td><td>{{ caritem?.Tuned?.[1] || '' }}</td><td>{{ caritem?.Tuned?.[2] || '' }}</td><td class="pr">{{ caritem?.PR?.[2] || '' }}</td></tr>
+    </tbody>
+  </table>
+</article>

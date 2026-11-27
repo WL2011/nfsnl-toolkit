@@ -1,0 +1,81 @@
+<!--
+  特殊赛零件计算器「肝它」(pages/separtsnotes/separtsnotes) — desktop layout.
+  Original handlers: selectMode (target), add (= got one: remaining −1), sub (= undo: remaining +1), reset, EndRace.
+  Note: in the original template the "−" button calls `add` and "+" calls `sub`; here they are labelled by meaning.
+  (ImportData / ExportData / ViewRRNotesList led to removed pages and are not used.)
+-->
+<div class="v-page v-gan">
+  <div class="gan-head">
+    <div class="gan-car" title="查看特殊赛信息" @click="__nav($event, '../se/se?id=' + cur_id, 'navigate')">
+      <img class="gan-type" :src="'img/cartype' + ((caritem?.Type + 1) || 1) + '.gif'" alt="">
+      <div>
+        <div class="gan-brand">{{ functions.getCarBrand(langMode, caritem || {}) }}</div>
+        <div class="gan-name" :class="'fore-' + BPColors?.[caritem?.BPColor]">{{ functions.getCarName(langMode, caritem || {}) }}</div>
+      </div>
+    </div>
+    <div class="gan-total">
+      <div class="gt-k">距离目标共需</div>
+      <div class="gt-row">
+        <span class="gt m-g"><b>{{ sumcredit?.[0] }}</b>灰</span>
+        <span class="gt m-u"><b>{{ sumcredit?.[1] }}</b>绿</span>
+        <span class="gt m-k"><b>{{ sumcredit?.[2] }}</b>套件</span>
+        <span class="gt credit"><b>{{ sumcredit?.[3] }}</b>积分</span>
+      </div>
+    </div>
+    <div class="gan-actions">
+      <button type="button" class="chip-btn" @click="__e($event, 'reset', {}, 'view', 'reset')">重置到初始掉落</button>
+      <button type="button" class="chip-btn danger" @click="__e($event, 'EndRace', {}, 'view', 'StartRace')">结束该赛事</button>
+    </div>
+  </div>
+
+  <div class="v-section-title">零件目标</div>
+  <div class="aim-row">
+    <template v-for="(item, index) in __list(aims)" :key="item.id">
+      <button v-if="index > aims.length - 4" type="button" class="aim" :class="['r-' + item.colorIndex, { on: SESelectedPartMode == item.id }]"
+        @click="__e($event, 'selectMode', { idx: item.id }, 'view', '')">
+        <span class="aim-name">{{ item.name }}</span>
+        <span class="aim-desc">{{ item.desc }}</span>
+      </button>
+    </template>
+  </div>
+  <p class="note">上述配置不能保证达到赛事最低 PR 要求，请以游戏内为准。</p>
+
+  <div class="v-section-title">材料进度 <span class="muted">数字 = 距离目标还需的数量（已扣除各关卡自然掉落）</span></div>
+  <div class="mat-board">
+    <div class="mb-head"><span></span><span class="m-g">灰色材料</span><span class="m-u">绿色材料</span><span class="m-k">套件</span></div>
+    <div v-for="slot in [1, 2, 3, 4, 5, 6]" :key="slot" class="mb-row">
+      <span class="mb-slot">零件 {{ slot }}</span>
+      <template v-for="(item, i) in materialsCount" :key="i">
+        <div v-if="i % 10 == slot && i < 800" class="mb-cell"
+          :class="[i < 20 ? 'm-g' : (i < 30 ? 'm-u' : 'm-k'), { done: item + OwnedSEMaterials?.[i] >= partModeSum?.[i < 20 ? 0 : (i < 30 ? 1 : 2)] }]">
+          <img class="mb-img" :src="newOldMode == 0 ? (ImageUrl + 'materialimgs_new/' + i + '.gif') : (ImageUrl + 'materialimgs/' + i + '.png')" alt="" loading="lazy">
+          <div class="mb-info">
+            <div class="mb-name">{{ materials?.[newOldMode]?.[i]?.['name' + langIDs?.[langMode]] }}</div>
+            <div class="mb-sub">已获得 {{ OwnedSEMaterials?.[i] || 0 }} · 关卡掉落 {{ item }}</div>
+          </div>
+          <div class="mb-num">{{ (partModeSum?.[i < 20 ? 0 : (i < 30 ? 1 : 2)] - item - OwnedSEMaterials?.[i]) < 0 ? 0 : (partModeSum?.[i < 20 ? 0 : (i < 30 ? 1 : 2)] - item - OwnedSEMaterials?.[i]) }}</div>
+          <div class="mb-ops">
+            <button type="button" class="mb-got" title="获得了 1 个（还需 −1）" @click="__e($event, 'add', { idx: i }, 'view', '')">−1</button>
+            <button type="button" class="mb-undo" title="撤销 1 个（还需 +1）" @click="__e($event, 'sub', { idx: i }, 'view', '')">+1</button>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <details class="panel help">
+    <summary class="panel-head"><h3>使用说明</h3><span class="panel-en">首次定目标，获得后点 −1</span><span class="panel-chev">›</span></summary>
+    <div class="panel-body">
+      <p class="warn">记录只保存在当前浏览器，换浏览器或清除浏览器数据后不会保留。</p>
+      <ol class="help-list">
+        <li>先选择想要达到的零件目标（如紫 4、紫 5），会自动记住。</li>
+        <li>根据目标和该车的零件升级模式，减去所有关卡掉落后，算出距离目标各还需多少材料（需重跑或购买）。</li>
+        <li>购买或重跑获得材料后，点该材料的 <b>−1</b>；关卡自然掉落的材料无需扣减。</li>
+        <li>点错了可以点 <b>+1</b> 加回来；上限为当前目标所需数量，下限为 0。</li>
+        <li>可以随时更换目标：记录的是已获得数量，换目标后显示新目标数减去已获得。</li>
+        <li>误操作太多时点「重置到初始掉落」清空已获得数量；跑完或不跑了点「结束该赛事」清空记录。</li>
+        <li>目标设得较低可能导致 PR 不够、无法提车。</li>
+      </ol>
+    </div>
+  </details>
+</div>

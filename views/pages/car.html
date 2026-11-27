@@ -1,0 +1,481 @@
+<!--
+  赛车详情 (pages/car/car) — desktop layout.
+  Hero (cover + actions | car card), then two columns of collapsible panels.
+  Collapse state is the page's own CarPageSetting (ToggleSetting), so it persists like in the mini program.
+-->
+<div class="v-page v-car">
+  <!-- ================= hero ================= -->
+  <div class="car-hero">
+    <div class="car-cover-card">
+      <div class="car-cover">
+        <img :src="ImageUrl + 'car/' + id + '.jpg'" alt="" @click="__preview(ImageUrl + 'car/' + id + '.jpg')" @error="$event.target.closest('.car-cover').classList.add('noimg')">
+      </div>
+      <div class="car-actions">
+        <button v-if="carcollected" type="button" class="act-btn" :class="{ on: carcollected == 1 }" @click="__e($event, 'AddToCollection', { idx: id }, 'image', '')">
+          <span class="act-star">{{ carcollected == 1 ? '★' : '☆' }}</span>{{ carcollected == 1 ? '已收藏' : '收藏' }}
+        </button>
+        <button v-if="!HideLanguage" type="button" class="act-btn" title="切换车名语言 · 右键隐藏" @click="__e($event, 'ToggleLanguage', {}, 'view', '')" @contextmenu.prevent="__e($event, 'HideLanguage', {}, 'view', '')">
+          车名：{{ langDisplays?.[langMode] }}
+        </button>
+        <span class="act-spacer"></span>
+        <button v-if="caritem?.HasSePartData" type="button" class="act-btn primary" @click="__nav($event, '../se/se?id=' + id, 'navigate')">查看该特殊赛信息 →</button>
+      </div>
+    </div>
+    <div class="car-hero-card"><include-template name="caritem" /></div>
+  </div>
+
+  <div class="car-cols">
+    <!-- ================= main column ================= -->
+    <div class="car-col">
+
+      <!-- 车库状态 -->
+      <section class="panel">
+        <header class="panel-head" @click="__e($event, 'ToggleSetting', { idx: 'IsCarShowGarage' }, 'image', '')">
+          <h3>车库状态</h3><span class="panel-en">GARAGE</span>
+          <span class="panel-chev" :class="{ open: CarPageSetting?.IsCarShowGarage }">›</span>
+        </header>
+        <div v-if="CarPageSetting?.IsCarShowGarage" class="panel-body">
+          <div v-if="MechInfo == 0" class="garage-empty">
+            <span>还没有记录这辆车的状态。</span>
+            <button type="button" class="btn-primary" @click="__e($event, 'SetBPs', { idx: 'make' }, 'text', '')">现在建造</button>
+          </div>
+          <template v-else>
+            <div class="garage-row">
+              <div class="garage-label">图纸星级</div>
+              <div class="bp-stars">
+                <template v-for="(x, k) in __list(caritem?.BPs)" :key="'s' + k">
+                  <button v-if="k < star" type="button" class="bp-star on" :title="'设为 ' + (k + 1) + ' 星'" @click="__e($event, 'LightStar', { idx: 'star', idy: k }, 'image', '')">★</button>
+                </template>
+                <template v-for="(x, k) in __list(caritem?.BPs)" :key="'b' + k">
+                  <button v-if="k <= nostar" type="button" class="bp-star" :title="'点亮到 ' + (k + 1 + star) + ' 星'" @click="__e($event, 'LightStar', { idx: 'blank', idy: k }, 'image', '')">☆</button>
+                </template>
+              </div>
+              <x-picker v-if="curmax >= 0" class="bp-picker" :range="BPAllowList" :value="bp" @change="__e($event, 'BPPickerChange', {}, 'picker', 'change')">
+                <span class="select-like"><b>{{ bp }}</b> / {{ curmax }} 张</span>
+              </x-picker>
+            </div>
+
+            <div class="garage-label">零件 <span class="muted">点击升星 · 右键升色</span></div>
+            <div class="parts-grid">
+              <div v-for="(item, k) in [0, 2, 4, 1, 3, 5]" :key="k" class="part-tile"
+                @click="__e($event, 'ChangeLevel', { idx: item }, 'image', 'PartTypesImg')"
+                @contextmenu.prevent="__e($event, 'ChangeColor', { idx: item }, 'image', 'PartTypesImg')">
+                <img :src="newOldMode == 0 ? (ImageUrl + 'partimgs_new/' + CurCarTypeID + PartColor?.[item] + (item + 1) + '.jpg') : (ImageUrl + 'partimgs/' + CurCarTypeID + PartColor?.[item] + (item + 1) + '.png')" alt="" loading="lazy">
+                <div class="part-stars">{{ PartStar?.[item] }}</div>
+                <span v-if="(CurCarTypeID == 1 && PartStar?.[item] != '★★★★★') || ((CurCarTypeID == 2 || cars?.[item]?.Type == 2) && PartStar?.[item] != '★★★★★★') || (CurCarTypeID > 3 && PartStar?.[item] != '★★★★★★★★')" class="part-up" title="还可以升级">↑</span>
+              </div>
+            </div>
+
+            <div class="garage-label">快捷设置</div>
+            <div class="quick-btns">
+              <button type="button" class="qbtn" @click="__e($event, 'SetBPs', { idx: 'unmake' }, 'text', '')">取消</button>
+              <button v-if="caritem?.HasSePartData" type="button" class="qbtn" @click="__e($event, 'SetBPs', { idx: 'se' }, 'text', '')">完赛</button>
+              <button type="button" class="qbtn" @click="__e($event, 'SetBPs', { idx: 'full' }, 'text', '')">满图</button>
+              <span class="qsep"></span>
+              <button v-if="caritem?.Type == 0" type="button" class="qbtn" @click="__e($event, 'SetParts', { idx: 'blue3' }, 'text', '')">蓝三</button>
+              <button v-if="caritem?.Type == 0" type="button" class="qbtn" @click="__e($event, 'SetParts', { idx: 'blue4' }, 'text', '')">蓝四</button>
+              <button v-if="caritem?.Type > 0" type="button" class="qbtn" @click="__e($event, 'SetParts', { idx: 'purple4' }, 'text', '')">紫四</button>
+              <button v-if="caritem?.Type > 0 && caritem?.Type < 3" type="button" class="qbtn" @click="__e($event, 'SetParts', { idx: 'purple5' }, 'text', '')">紫五</button>
+              <button v-if="caritem?.Type > 2" type="button" class="qbtn" @click="__e($event, 'SetParts', { idx: 'gold5' }, 'text', '')">金五</button>
+              <button v-if="caritem?.Type > 2" type="button" class="qbtn" @click="__e($event, 'SetParts', { idx: 'gold6' }, 'text', '')">金六</button>
+              <button v-if="caritem?.Type > 2" type="button" class="qbtn" @click="__e($event, 'SetParts', { idx: 'gold7' }, 'text', '')">金七</button>
+              <button v-if="caritem?.Type > 2" type="button" class="qbtn" @click="__e($event, 'SetParts', { idx: 'black7' }, 'text', '')">黑七</button>
+              <button type="button" class="qbtn" @click="__e($event, 'SetParts', { idx: 'full' }, 'text', '')">满配</button>
+              <button v-if="caritem?.Type > 2" type="button" class="qbtn" :class="{ on: tuned }" @click="__e($event, 'SetTuned', {}, 'text', '')">开调</button>
+            </div>
+
+            <div v-if="tuned || fulled" class="garage-row">
+              <div class="garage-label">{{ caritem?.Type > 2 ? '开调日期' : '满配日期' }}</div>
+              <x-picker mode="date" :value="tuneddate" fields="day" @change="__e($event, 'bindTunedDateChange', {}, 'picker', '')">
+                <span class="select-like">{{ tuneddate || '选择日期' }}</span>
+              </x-picker>
+            </div>
+
+            <div class="garage-summary">
+              <div class="stat"><div class="stat-k">已获得机修</div><div class="stat-v">{{ MechInfo }}</div>
+                <div v-if="tuned && caritem?.TunedExp" class="stat-s">{{ MechInfo - caritem.TunedExp }} + 开调 {{ caritem.TunedExp }}</div></div>
+              <div v-if="BPCount" class="stat"><div class="stat-k">全满还需蓝图</div><div class="stat-v">{{ BPCount }}</div></div>
+              <div v-if="Scraps != '0'" class="stat"><div class="stat-k">还需废料</div><div class="stat-v">{{ Scraps }}</div></div>
+              <div v-if="Dollars != '0'" class="stat"><div class="stat-k">还需现金</div><div class="stat-v">{{ Dollars }}</div></div>
+            </div>
+
+            <template v-if="(BPCount || Scraps != '0' || Dollars != '0') && Materials">
+              <div class="garage-label">还需材料 <span class="muted">建议更换至最高零件级别再装材料</span></div>
+              <div class="mat-grid">
+                <template v-for="(item, index) in Materials" :key="'m1' + index">
+                  <div v-if="(item && index < 100) || index == '1a' || index == '1b'" class="mat">
+                    <img :src="newOldMode == 0 ? (ImageUrl + 'materialimgs_new/' + index + '.gif') : (ImageUrl + 'materialimgs/' + index + '.png')" alt="" loading="lazy">
+                    <span class="mat-name" :class="'fore_' + BPColors?.[((index / 10) | 0) - 1]">{{ materialsX?.[newOldMode]?.[index]?.['name' + langIDs?.[langMode]] }}</span>
+                    <span class="mat-n">× {{ item }}</span>
+                  </div>
+                </template>
+                <template v-for="(item, index) in Materials" :key="'m2' + index">
+                  <div v-if="item && index >= 100 && index < 1000" class="mat">
+                    <img :src="newOldMode == 0 ? (ImageUrl + 'materialimgs_new/' + index + '.gif') : (ImageUrl + 'materialimgs/' + index + '.png')" alt="" loading="lazy">
+                    <span class="mat-name" :class="'fore_' + BPColors?.[((index / 100) | 0) - 1]">{{ materialsX?.[newOldMode]?.[index]?.['name' + langIDs?.[langMode]] }}</span>
+                    <span class="mat-n">× {{ item }}</span>
+                  </div>
+                </template>
+                <template v-for="(item, index) in Materials" :key="'m3' + index">
+                  <div v-if="item && index >= 1000 && index < 1010" class="mat">
+                    <span class="mat-pack" :class="'r-' + BPColors?.[index - 1001]">6 个 {{ maNames?.[index - 1001] }}</span>
+                    <span class="mat-n">× {{ item }} 套</span>
+                  </div>
+                </template>
+                <template v-for="(item, index) in Materials" :key="'m4' + index">
+                  <div v-if="item && index >= 1010" class="mat">
+                    <span class="mat-pack solid" :class="'r-' + BPColors?.[(index - 1000) / 10 - 1]">6 个 {{ kitNames?.[(index - 1000) / 10 - 1] }}</span>
+                    <span class="mat-n">× {{ item }} 套</span>
+                  </div>
+                </template>
+              </div>
+            </template>
+          </template>
+        </div>
+      </section>
+
+      <!-- 调教信息 -->
+      <section v-if="caritem?.TunedTS?.length > 0" class="panel">
+        <header class="panel-head" @click="__e($event, 'ToggleSetting', { idx: 'IsCarShowTunedInfo' }, 'image', '')">
+          <h3>调教信息</h3><span class="panel-en">TUNED</span>
+          <span class="panel-count">扳手 {{ caritem?.NeedTools }}</span>
+          <span class="panel-chev" :class="{ open: CarPageSetting?.IsCarShowTunedInfo }">›</span>
+        </header>
+        <div v-if="CarPageSetting?.IsCarShowTunedInfo" class="panel-body">
+          <div class="tune-row">
+            <span class="tune-k">极速</span>
+            <div class="tune-steps">
+              <button type="button" class="tune-step off" :class="{ on: curTSindex < 0 }" title="不调" @click="__e($event, 'ts', { idx: -1 }, 'image', '')">0</button>
+              <button v-for="k in [0, 1, 2, 3]" :key="k" type="button" class="tune-step" :class="{ on: curTSindex >= k }" @click="__e($event, 'ts', { idx: k }, 'image', '')">{{ k + 1 }}</button>
+            </div>
+            <span class="tune-v">{{ curTS }}</span><span class="tune-d">+{{ deltaTS }}</span><span class="tune-p">+{{ deltaTSRatio }}%</span>
+          </div>
+          <div class="tune-row">
+            <span class="tune-k">加速</span>
+            <div class="tune-steps">
+              <button type="button" class="tune-step off" :class="{ on: curAccindex < 0 }" title="不调" @click="__e($event, 'acc', { idx: -1 }, 'image', '')">0</button>
+              <button v-for="k in [0, 1, 2, 3]" :key="k" type="button" class="tune-step" :class="{ on: curAccindex >= k }" @click="__e($event, 'acc', { idx: k }, 'image', '')">{{ k + 1 }}</button>
+            </div>
+            <span class="tune-v">{{ curAcc }}</span><span class="tune-d">+{{ deltaAcc }}</span><span class="tune-p">+{{ deltaAccRatio }}%</span>
+          </div>
+          <div class="tune-row">
+            <span class="tune-k">氮气</span>
+            <div class="tune-steps">
+              <button type="button" class="tune-step off" :class="{ on: curNitroindex < 0 }" title="不调" @click="__e($event, 'nitro', { idx: -1 }, 'image', '')">0</button>
+              <button v-for="k in [0, 1, 2, 3]" :key="k" type="button" class="tune-step" :class="{ on: curNitroindex >= k }" @click="__e($event, 'nitro', { idx: k }, 'image', '')">{{ k + 1 }}</button>
+            </div>
+            <span class="tune-v">{{ curNitro }}</span><span class="tune-d">+{{ deltaNitro }}</span><span class="tune-p">+{{ deltaNitroRatio }}%</span>
+          </div>
+          <div v-if="caritem?.TopSpeed?.[tunedstring]" class="kv-line">当前调校最高时速 <b>{{ caritem.TopSpeed[tunedstring] }}</b> km/h</div>
+          <p class="note">上述数值有 ±1 的偏差属正常现象，系游戏里不同设备、甚至同一设备在不同时间的数据表现。</p>
+        </div>
+      </section>
+
+      <!-- 其他参数 -->
+      <section class="panel">
+        <header class="panel-head" @click="__e($event, 'ToggleSetting', { idx: 'IsCarShowParameters' }, 'image', '')">
+          <h3>其他参数</h3><span class="panel-en">PARAMETERS</span>
+          <span class="panel-chev" :class="{ open: CarPageSetting?.IsCarShowParameters }">›</span>
+        </header>
+        <div v-if="CarPageSetting?.IsCarShowParameters" class="panel-body">
+          <dl class="kv">
+            <dt>最高时速</dt>
+            <dd>
+              <template v-if="caritem?.TopSpeed">
+                <span v-for="(v, k) in caritem.TopSpeed" :key="k" class="pill">{{ k == '000' ? '满星' : '调校 ' + k }} <b>{{ v }}</b> km/h</span>
+              </template>
+              <span v-else class="muted">暂未收录</span>
+            </dd>
+
+            <dt>废料值</dt>
+            <dd>
+              <template v-if="caritem?.Waste != 0">
+                作废 <b>{{ caritem.Waste / 5 }}</b> /张<template v-if="caritem?.CanWasteBuy">，购买 <b>{{ caritem.Waste }}</b> /张</template>
+                <div class="kv-calc">废料计算
+                  <x-picker :range="ScrapBuyList" :value="0" @change="__e($event, 'ScrapBuyListPickerChange', {}, 'picker', 'BPBuyList')"><span class="select-like">{{ ScrapBuyList?.[ScrapBuyList_index] }}</span></x-picker>
+                </div>
+              </template>
+              <span v-else class="muted">暂未收录</span>
+            </dd>
+
+            <dt>黑市售价</dt>
+            <dd>
+              <template v-if="caritem?.marketSold == -1"><b>-</b> <span class="muted">（未进入黑市）</span></template>
+              <template v-else-if="caritem?.marketSold > 0">
+                <b>{{ caritem.marketSold }}</b> 金/首张，溢价 <b>{{ caritem.marketSoldx }}</b> 金/张
+                <div class="kv-calc">购买计算
+                  <x-picker :range="MarketBuyList" :value="0" @change="__e($event, 'MarketBuyListPickerChange', {}, 'picker', 'BPBuyList')"><span class="select-like">{{ MarketBuyList?.[MarketBuyList_index] }}</span></x-picker>
+                </div>
+              </template>
+              <span v-else class="muted">暂未收录</span>
+            </dd>
+
+            <dt>黑市一次性造车提车</dt>
+            <dd>
+              <template v-if="caritem?.marketSold == -1"><b>-</b> <span class="muted">（未进入黑市）</span></template>
+              <template v-else-if="caritem?.ID < 24"><b>-</b> <span class="muted">（生涯用车，无法一次性造车提车）</span></template>
+              <template v-else-if="caritem?.marketMake?.length > 0">
+                <b>{{ caritem.marketMake[1] }}</b> 金 <b>{{ caritem.marketMake[0] }}</b> 图，平均 <b>{{ caritem.marketMake[1] / caritem.marketMake[0] }}</b> 金/图
+                <div class="kv-calc">一次性提车需再购买
+                  <x-picker :range="BPBuyList" :value="0" @change="__e($event, 'BPBuyListPickerChange', {}, 'picker', 'BPBuyList')"><span class="select-like">{{ BPBuyList?.[BPBuyList_index] }}</span></x-picker>
+                </div>
+              </template>
+              <span v-else class="muted">暂未收录</span>
+            </dd>
+
+            <template v-if="caritem?.Type >= 3">
+              <dt>开调机修</dt>
+              <dd><template v-if="caritem?.TunedExp != 0"><b>{{ caritem.TunedExp }}</b> 机修经验</template><span v-else class="muted">暂未收录</span></dd>
+            </template>
+            <template v-if="(caritem?.NeedTools && caritem?.NeedTools != 0) || caritem?.Type >= 3">
+              <dt>消耗扳手</dt>
+              <dd><template v-if="caritem?.NeedTools && caritem?.NeedTools != 0"><b>{{ caritem.NeedTools }}</b> 扳手/调教点</template><span v-else class="muted">暂未收录</span></dd>
+            </template>
+
+            <dt>商店金块车包</dt>
+            <dd><template v-if="caritem?.giftSold"><b>{{ caritem.giftSold[0] }}</b> 金 <b>{{ caritem.giftSold[1] }}</b> 图 <span class="muted">（不同时期略有波动，仅供参考）</span></template><span v-else class="muted">暂未收录</span></dd>
+          </dl>
+        </div>
+      </section>
+
+      <!-- 原厂配色 -->
+      <section v-if="caritem?.colorIndex?.length > 0 || caritem?.colorIndex2?.length > 0 || caritem?.colorIndex > 10000" class="panel">
+        <header class="panel-head" @click="__e($event, 'ToggleSetting', { idx: 'IsCarShowColor' }, 'image', '')">
+          <h3>原厂配色</h3><span class="panel-en">COLOR</span>
+          <span class="panel-chev" :class="{ open: CarPageSetting?.IsCarShowColor }">›</span>
+        </header>
+        <div v-if="CarPageSetting?.IsCarShowColor" class="panel-body">
+          <template v-if="caritem?.colorIndex?.length > 0">
+            <div class="sub-title">原厂 / 展厅配色</div>
+            <div class="swatches">
+              <div class="swatch" :class="{ unique: SameColorBodyCars?.length == 0 }">
+                <span class="sw" :style="color?.[caritem.colorIndex[0]]?.color2 ? { backgroundImage: 'linear-gradient(' + color[caritem.colorIndex[0]].color + ',' + color[caritem.colorIndex[0]].color2 + ')' } : { backgroundColor: color?.[caritem.colorIndex[0]]?.color }"></span>
+                <div class="sw-text"><div class="sw-part">{{ bodyType?.[langMode]?.[0] }}<span v-if="SameColorBodyCars?.length == 0" class="sw-unique">独有</span></div>
+                  <div>{{ colorType?.[langMode]?.[color?.[caritem.colorIndex[0]]?.color_type] }} · {{ color?.[caritem.colorIndex[0]]?.['name' + langIDs?.[langMode]] }} <span class="muted">({{ color?.[caritem.colorIndex[0]]?.seq }})</span></div></div>
+              </div>
+              <div class="swatch">
+                <span class="sw" :style="{ backgroundColor: color?.[caritem.colorIndex[3]]?.color }"></span>
+                <div class="sw-text"><div class="sw-part">{{ bodyType?.[langMode]?.[3] }}</div>
+                  <div>{{ color?.[caritem.colorIndex[3]]?.['name' + langIDs?.[langMode]] }} <span class="muted">({{ color?.[caritem.colorIndex[3]]?.seq }})</span></div></div>
+              </div>
+              <div class="swatch" :class="{ unique: SameColorWheelsCars?.length == 0 }">
+                <span class="sw" :style="{ backgroundColor: color?.[caritem.colorIndex[1]]?.color }"></span>
+                <div class="sw-text"><div class="sw-part">{{ bodyType?.[langMode]?.[1] }}<span v-if="SameColorWheelsCars?.length == 0" class="sw-unique">独有</span></div>
+                  <div>{{ colorType?.[langMode]?.[color?.[caritem.colorIndex[1]]?.color_type] }} · {{ color?.[caritem.colorIndex[1]]?.['name' + langIDs?.[langMode]] }} <span class="muted">({{ color?.[caritem.colorIndex[1]]?.seq }})</span></div></div>
+              </div>
+              <div class="swatch">
+                <span class="sw" :style="{ backgroundColor: color?.[caritem.colorIndex[2]]?.color }"></span>
+                <div class="sw-text"><div class="sw-part">{{ bodyType?.[langMode]?.[2] }}</div>
+                  <div>{{ color?.[caritem.colorIndex[2]]?.['name' + langIDs?.[langMode]] }} <span class="muted">({{ color?.[caritem.colorIndex[2]]?.seq }})</span></div></div>
+              </div>
+              <div v-if="caritem?.colorIndex?.length > 4" class="swatch">
+                <span class="sw img"><img :src="ImageUrl + 'color/carspecific/' + caritem.ID + '-0.PNG'" alt=""></span>
+                <div class="sw-text"><div class="sw-part">{{ bodyType?.[langMode]?.[4] }}</div><div>{{ caritem.colorIndex[4 + langMode] }}</div></div>
+              </div>
+            </div>
+            <template v-if="SameColorBodyCars?.length > 0">
+              <div class="sub-title">相同车身颜色的赛车</div>
+              <div class="car-chips">
+                <button v-for="(car, k) in __list(SameColorBodyCars)" :key="k" type="button" class="car-chip" :class="'r-' + BPColors?.[car.BPColor]" @click="__e($event, 'SameStartupCarsClick', { idx: car.ID }, 'button', '')">{{ car.ShortName }}</button>
+              </div>
+            </template>
+            <template v-if="SameColorWheelsCars?.length > 0">
+              <div class="sub-title">相同轮圈颜色的赛车</div>
+              <div class="car-chips">
+                <button v-for="(car, k) in __list(SameColorWheelsCars)" :key="k" type="button" class="car-chip" :class="'r-' + BPColors?.[car.BPColor]" @click="__e($event, 'SameStartupCarsClick', { idx: car.ID }, 'button', '')">{{ car.ShortName }}</button>
+              </div>
+            </template>
+          </template>
+
+          <template v-if="caritem?.colorIndex2?.length > 0">
+            <div class="sub-title">特殊赛提车配色</div>
+            <div class="swatches">
+              <div class="swatch" :class="{ unique: SameColorBodyCars2?.length == 0 }">
+                <span class="sw" :style="color?.[caritem.colorIndex2[0]]?.color2 ? { backgroundImage: 'linear-gradient(' + color[caritem.colorIndex2[0]].color + ',' + color[caritem.colorIndex2[0]].color2 + ')' } : { backgroundColor: color?.[caritem.colorIndex2[0]]?.color }"></span>
+                <div class="sw-text"><div class="sw-part">{{ bodyType?.[langMode]?.[0] }}<span v-if="SameColorBodyCars2?.length == 0" class="sw-unique">独有</span></div>
+                  <div>{{ colorType?.[langMode]?.[color?.[caritem.colorIndex2[0]]?.color_type] }} · {{ color?.[caritem.colorIndex2[0]]?.['name' + langIDs?.[langMode]] }} <span class="muted">({{ color?.[caritem.colorIndex2[0]]?.seq }})</span></div></div>
+              </div>
+              <div class="swatch">
+                <span class="sw" :style="{ backgroundColor: color?.[caritem.colorIndex2[3]]?.color }"></span>
+                <div class="sw-text"><div class="sw-part">{{ bodyType?.[langMode]?.[3] }}</div>
+                  <div>{{ color?.[caritem.colorIndex2[3]]?.['name' + langIDs?.[langMode]] }} <span class="muted">({{ color?.[caritem.colorIndex2[3]]?.seq }})</span></div></div>
+              </div>
+              <div class="swatch">
+                <span class="sw" :style="{ backgroundColor: color?.[caritem.colorIndex2[1]]?.color }"></span>
+                <div class="sw-text"><div class="sw-part">{{ bodyType?.[langMode]?.[1] }}</div>
+                  <div>{{ colorType?.[langMode]?.[color?.[caritem.colorIndex2[1]]?.color_type] }} · {{ color?.[caritem.colorIndex2[1]]?.['name' + langIDs?.[langMode]] }} <span class="muted">({{ color?.[caritem.colorIndex2[1]]?.seq }})</span></div></div>
+              </div>
+              <div class="swatch">
+                <span class="sw" :style="{ backgroundColor: color?.[caritem.colorIndex2[2]]?.color }"></span>
+                <div class="sw-text"><div class="sw-part">{{ bodyType?.[langMode]?.[2] }}</div>
+                  <div>{{ color?.[caritem.colorIndex2[2]]?.['name' + langIDs?.[langMode]] }} <span class="muted">({{ color?.[caritem.colorIndex2[2]]?.seq }})</span></div></div>
+              </div>
+              <div v-if="caritem?.colorIndex2?.[4]" class="swatch">
+                <span class="sw img"><img :src="ImageUrl + 'color/carspecific/' + caritem.ID + '.PNG'" alt=""></span>
+                <div class="sw-text"><div class="sw-part">{{ bodyType?.[langMode]?.[4] }}</div><div>{{ caritem.colorIndex2[4 + langMode] }}</div></div>
+              </div>
+            </div>
+          </template>
+
+          <template v-if="caritem?.colorIndex > 10000">
+            <div class="sub-title">原厂 / 展厅配色</div>
+            <div class="swatches">
+              <div class="swatch">
+                <span class="sw" :style="{ backgroundColor: color?.[caritem.colorIndex]?.color }"></span>
+                <div class="sw-text"><div class="sw-part">{{ bodyType?.[langMode]?.[0] }}</div>
+                  <div>{{ colorType?.[langMode]?.[color?.[caritem.colorIndex]?.color_type] }} · {{ color?.[caritem.colorIndex]?.['name' + langIDs?.[langMode]] }} <span class="muted">({{ color?.[caritem.colorIndex]?.seq }})</span></div></div>
+              </div>
+            </div>
+            <div class="sub-title">该车所有可选配色</div>
+            <div class="swatches">
+              <div v-for="(item, k) in __list(caritem?.colorRange)" :key="k" class="swatch">
+                <span class="sw" :style="{ backgroundColor: color?.[item]?.color }"></span>
+                <div class="sw-text"><div class="sw-part">{{ bodyType?.[langMode]?.[0] }}</div>
+                  <div>{{ colorType?.[langMode]?.[color?.[item]?.color_type] }} · {{ color?.[item]?.['name' + langIDs?.[langMode]] }} <span class="muted">({{ color?.[item]?.seq }})</span></div></div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </section>
+    </div>
+
+    <!-- ================= side column ================= -->
+    <div class="car-col side">
+
+      <!-- 特殊赛 -->
+      <section v-if="se?.length > 0" class="panel">
+        <header class="panel-head" @click="__e($event, 'ToggleSetting', { idx: 'IsCarShowSEs' }, 'image', '')">
+          <h3>特殊赛</h3><span class="panel-count">{{ se.length }} 次</span>
+          <span class="panel-chev" :class="{ open: CarPageSetting?.IsCarShowSEs }">›</span>
+        </header>
+        <div v-if="CarPageSetting?.IsCarShowSEs" class="panel-body tight scrolly">
+          <div v-for="(seitem, i) in __list(se)" :key="i" class="tl-item" :class="{ first: i == 0 }">
+            <div class="tl-date">{{ seitem[0] }}</div>
+            <div class="tl-main">{{ seitem[2] }} 天赛 · {{ seitem[3] ? '唯一赛事' : '第' + seitem[4] + '顺位' }}</div>
+            <div class="tl-sub">『{{ seitem[1] }}』</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 重跑活动 -->
+      <section v-if="RRLists?.length > 0" class="panel">
+        <header class="panel-head" @click="__e($event, 'ToggleSetting', { idx: 'IsCarShowRRTimes' }, 'image', '')">
+          <h3>重跑活动</h3><span class="panel-count">{{ RRLists.length }} 次</span>
+          <span class="panel-chev" :class="{ open: CarPageSetting?.IsCarShowRRTimes }">›</span>
+        </header>
+        <div v-if="CarPageSetting?.IsCarShowRRTimes" class="panel-body tight scrolly">
+          <div class="note">自 1.6.4 版本以来的重跑活动</div>
+          <div class="rr-list">
+            <div v-for="(item, k) in __list(RRLists)" :key="k" class="rr-row">
+              <span>{{ item.Date }}</span>
+              <span v-if="item.daysdiff > 0" class="rr-gap">+{{ item.daysdiff }} 天</span>
+              <span class="rr-days">{{ item.days || 1 }} 天</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 地下赛 -->
+      <section v-if="under?.length > 0" class="panel">
+        <header class="panel-head" @click="__e($event, 'ToggleSetting', { idx: 'IsCarShowUnderground' }, 'image', '')">
+          <h3>地下赛</h3><span class="panel-count">{{ under.length }} 次</span>
+          <span class="panel-chev" :class="{ open: CarPageSetting?.IsCarShowUnderground }">›</span>
+        </header>
+        <div v-if="CarPageSetting?.IsCarShowUnderground" class="panel-body tight scrolly">
+          <div class="mini-stats">
+            <div><span>登场时间</span><b>{{ firstDate }}</b></div>
+            <div><span>最后地下</span><b>{{ under[under.length - 1]?.[0] }}</b><em>距今 {{ sincelast }} 周</em></div>
+            <div><span>头车 / 地下</span><b>{{ headcount }} / {{ under.length }}</b><em>头车率 {{ headRatio }}%</em></div>
+            <div v-if="headcounttheoretically != headcount"><span>理论头车</span><b>{{ headcounttheoretically }}</b><em>{{ headRatio2 }}%</em></div>
+            <div><span>地下 / 可出现周数</span><b>{{ under.length }} / {{ allcount }}</b><em>排车率 {{ rivalRatio }}%</em></div>
+          </div>
+          <div v-for="(underitem, i) in __list(under)" :key="i" class="ug-item">
+            <div class="ug-head">
+              <span class="ug-date">{{ underitem[0] }}</span>
+              <span class="muted">第{{ underitem[1] }}轮 第{{ underitem[2] }}周</span>
+              <span class="ug-chapter">{{ UndergroundChapter?.[langMode]?.[underitem[8]] }}</span>
+            </div>
+            <div class="ug-body">
+              <img class="ug-pos" :src="'img/pos/pos' + underitem[7] + '.png'" :title="'第 ' + underitem[7] + ' 位'" alt="">
+              <button v-if="underitem[7] > 3" type="button" class="car-chip" :class="['r-' + BPColors?.[cars?.[underitem[10]?.[0]]?.BPColor], { solid: underitem[10]?.[1] }]" @click="__e($event, 'carNavi', { idx: underitem[10]?.[0] }, 'button', '')">{{ cars?.[underitem[10]?.[0]]?.ShortName }}</button>
+              <button v-if="underitem[7] > 6" type="button" class="car-chip" :class="['r-' + BPColors?.[cars?.[underitem[11]?.[0]]?.BPColor], { solid: underitem[11]?.[1] }]" @click="__e($event, 'carNavi', { idx: underitem[11]?.[0] }, 'button', '')">{{ cars?.[underitem[11]?.[0]]?.ShortName }}</button>
+              <button type="button" class="vs-btn" title="对比同组赛车" @click="__nav($event, '../compare/compare?ids=' + underitem[9], 'navigate')">VS</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 系列赛 -->
+      <section v-if="series?.length > 0" class="panel">
+        <header class="panel-head" @click="__e($event, 'ToggleSetting', { idx: 'IsCarShowSeries' }, 'image', '')">
+          <h3>系列赛</h3><span class="panel-count">{{ series.length }}</span>
+          <span class="panel-chev" :class="{ open: CarPageSetting?.IsCarShowSeries }">›</span>
+        </header>
+        <div v-if="CarPageSetting?.IsCarShowSeries" class="panel-body tight">
+          <div v-for="(item, k) in __list(series)" :key="k" class="link-row plain">{{ item[0]?.['name' + langIDs?.[langMode]] }}</div>
+        </div>
+      </section>
+
+      <!-- 赛事库 -->
+      <section v-if="caritem?.inVault" class="panel">
+        <header class="panel-head" @click="__e($event, 'ToggleSetting', { idx: 'IsCarShowVault' }, 'image', '')">
+          <h3>赛事库</h3><span class="panel-en">VAULT</span>
+          <span class="panel-chev" :class="{ open: CarPageSetting?.IsCarShowVault }">›</span>
+        </header>
+        <div v-if="CarPageSetting?.IsCarShowVault" class="panel-body tight">
+          <div class="kv-line">{{ vaultType?.['name' + langIDs?.[langMode]] }} · {{ vaultTheme?.['name' + langIDs?.[langMode]] }}</div>
+          <div class="sub-title">该板块所有车型（{{ vaultTheme?.cars?.length }}）</div>
+          <button v-for="(item, k) in __list(vaultTheme?.cars)" :key="k" type="button" class="link-row" :class="'fore_' + BPColors?.[cars?.[functions.abs(item)]?.BPColor]" @click="__nav($event, '../se/se?id=' + functions.abs(item), 'navigate')">
+            <img class="link-ico" :src="'img/cartype' + ((cars?.[item]?.Type + 1) || 1) + '.gif'" alt="">
+            {{ langMode == 0 ? cars?.[functions.abs(item)]?.Name2052 : (langMode == 1 ? cars?.[functions.abs(item)]?.Name3076 : (langMode == 3 ? cars?.[functions.abs(item)]?.Name1041 : cars?.[functions.abs(item)]?.Name)) }}<span>›</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- 起步信息 -->
+      <section v-if="Startup?.[1] > 0" class="panel">
+        <header class="panel-head" @click="__e($event, 'ToggleSetting', { idx: 'IsCarShowStartup' }, 'image', '')">
+          <h3>起步信息</h3><span class="panel-count">{{ Startup[0] }} 良好 · {{ Startup[1] }} 完美</span>
+          <span class="panel-chev" :class="{ open: CarPageSetting?.IsCarShowStartup }">›</span>
+        </header>
+        <div v-if="CarPageSetting?.IsCarShowStartup" class="panel-body tight">
+          <div class="startup">
+            <div v-for="(cell, k) in __list(caritem?.Startup)" :key="k" class="su-cell" :class="'su-' + cell"><span>{{ k }}</span></div>
+            <div class="su-end"><span>10</span></div>
+          </div>
+          <div class="su-legend"><i class="su-1"></i>良好 <i class="su-2"></i>完美 <i class="su-0"></i>无</div>
+          <div class="sub-title">相同起步的赛车</div>
+          <div v-if="SameStartupCars?.length > 0" class="car-chips">
+            <button v-for="(car, k) in __list(SameStartupCars)" :key="k" type="button" class="car-chip" :class="'r-' + BPColors?.[car.BPColor]" @click="__e($event, 'SameStartupCarsClick', { idx: car.ID }, 'button', '')">{{ car.ShortName }}</button>
+          </div>
+          <div v-else class="muted">暂无相同起步的赛车</div>
+        </div>
+      </section>
+
+      <details class="panel legend">
+        <summary class="panel-head"><h3>图例</h3><span class="panel-en">LEGEND</span><span class="panel-chev">›</span></summary>
+        <div class="panel-body tight legend-list">
+          <div><img src="img/icon20_rival.png" alt="">有地下赛指定用车</div>
+          <div><img src="img/icon20_premiumcrate.png" alt="">码头金箱子里能开到</div>
+          <div><img src="img/icon20_se.png" alt="">有特殊赛</div>
+          <div><img src="img/icon20_neon.png" alt="">可设置霓虹灯改装</div>
+          <div><img src="img/vault.png" alt="">出现在保存库赛事中</div>
+          <div><img src="img/fb.png" alt="">可能出现在未来闪回列表中</div>
+          <div><img src="img/flag.gif" alt="">收录了特殊赛详细信息</div>
+          <div><img src="img/icon20_waste.png" alt="">可在汽车工坊用废料兑换蓝图</div>
+          <div><img src="img/icon20_emp.gif" alt="">可改装</div>
+          <div><img src="img/icon20_empf.gif" alt="">法拉利 / Rimac 专属色</div>
+          <div><img src="img/icon20_emp2.gif" alt="">可改装，并拥有特殊赛涂装</div>
+          <div><img src="img/icon20_emp_no.gif" alt="">不可改装</div>
+          <div><img src="img/icon20_sr.png" alt="">有系列赛</div>
+          <div><img src="img/icon20_3fuel.png" alt="">5 个“三油车”之一</div>
+          <div><img src="img/icon20_cart.png" alt="">4 个“人民币车”之一</div>
+          <div><img src="img/crew.gif" alt="">可通过车队箱子开出</div>
+          <div><img src="img/cartype1.gif" alt="">赛车类别</div>
+        </div>
+      </details>
+    </div>
+  </div>
+
+
+</div>

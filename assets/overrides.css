@@ -1,0 +1,81 @@
+/* ============================================================
+   Modernises the original (converted) page styles in generated/legacy.css.
+   Selectors start with `.app .pg` so they outrank the scoped originals.
+   ============================================================ */
+
+/* ---- layout: centre the phone-era pages on wide screens ---- */
+.page-inner > .pg:not(:has(> .v-page)) {
+  max-width: 1080px; margin: 0 auto; min-height: 100%;
+  transform: translateZ(0);            /* their position:fixed bars now align with the column */
+  background: var(--surface); box-shadow: 0 0 0 1px var(--border);
+}
+.app .pg { color: var(--text); font-size: 14px; }
+.app .pg * { font-family: var(--font) !important; }
+.app .pg .darked, .app .pg.darked { background-color: transparent !important; }
+
+/* ---- top tab bars ---- */
+.app .pg .topfix, .app .pg .topfix2 { background: color-mix(in srgb, var(--surface) 92%, transparent) !important; backdrop-filter: blur(10px); border-bottom: 1px solid var(--border) !important; box-shadow: none !important; z-index: 8; }
+.app .pg .top-tab { background: transparent !important; border: 0 !important; }
+.app .pg .flex-item, .app .pg .act_nav_item { color: var(--text-2) !important; font-size: 14px !important; border: 0 !important; border-radius: 8px; transition: color .15s, background .15s; cursor: pointer; }
+.app .pg .flex-item:hover, .app .pg .act_nav_item:hover { color: var(--text) !important; }
+.app .pg .flex-item.active, .app .pg .act_nav_item.active { color: var(--accent-text) !important; font-weight: 650 !important; background: transparent !important; box-shadow: inset 0 -2px 0 var(--accent) !important; border-radius: 0; }
+
+/* ---- tables (.table / .th / .tr / .td) ---- */
+.app .pg .table { border: 1px solid var(--border) !important; border-radius: 12px; overflow: hidden; background: var(--surface); }
+.app .pg .th, .app .pg .th2 { background: var(--surface-2) !important; color: var(--text-2) !important; font-weight: 600 !important; }
+.app .pg .th .td, .app .pg .th2 .td { color: var(--text-2) !important; font-size: 13px !important; background: transparent !important; border-color: var(--border) !important; }
+.app .pg .td { border-color: var(--border) !important; font-size: 13.5px; }
+.app .pg .tr { transition: background .12s; }
+.app .pg .tr:hover { background-color: color-mix(in srgb, var(--accent) 6%, transparent); }
+
+/* ---- floating round shortcut buttons ---- */
+.app .pg .CarAwardListSwitcher, .app .pg .languageSwitcher, .app .pg .sortingSwitcher, .app .pg .ascendingSwitcher {
+  background: var(--surface) !important; color: var(--text-2) !important; border: 1px solid var(--border) !important;
+  box-shadow: var(--shadow) !important; border-radius: 12px !important; cursor: pointer; }
+.app .pg .CarAwardListSwitcher:hover, .app .pg .languageSwitcher:hover { border-color: var(--border-strong) !important; color: var(--text) !important; }
+.app .pg .darkSwitcher, .app .pg .skinSwitcher { display: none !important; }   /* handled by the sidebar */
+
+/* ---- buttons ---- */
+.app .pg .button_style, .app .pg .mini-btn, .app .pg .btncompare, .app .pg #StartRace, .app .pg .seemore {
+  background: var(--surface) !important; color: var(--text-2) !important; border: 1px solid var(--border) !important;
+  border-radius: 9px !important; box-shadow: var(--shadow-sm); cursor: pointer; }
+.app .pg .button_style:hover, .app .pg .mini-btn:hover, .app .pg .seemore:hover, .app .pg #StartRace:hover { border-color: var(--border-strong) !important; color: var(--text) !important; }
+.app .pg button.wx-button { border-radius: 9px; border: 1px solid var(--border); background: var(--surface); color: var(--text); padding: 7px 16px; cursor: pointer; font-size: 14px; }
+.app .pg button.wx-button.wx-btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.app .pg button.wx-button.wx-btn-warn { background: #e5484d; border-color: #e5484d; color: #fff; }
+.app .pg button.wx-button.wx-btn-mini { padding: 3px 10px; font-size: 12.5px; display: inline-block; }
+
+/* ---- inputs ---- */
+.app .pg .wx-input, .app .pg .wx-textarea { border: 1px solid var(--border); border-radius: 9px; background: var(--surface); color: var(--text); padding: 7px 10px; font-size: 14px; outline: none; }
+.app .pg .wx-input:focus, .app .pg .wx-textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.app .pg .wx-checkbox, .app .pg .wx-radio { accent-color: var(--accent); width: 16px; height: 16px; vertical-align: middle; }
+
+/* ---- small text ---- */
+.app .pg .tips { color: var(--text-3) !important; }
+
+/* ---- dark mode: neutralise hard-coded light backgrounds in the originals ---- */
+.app.dark .pg .th, .app.dark .pg .th2 { background: var(--surface-2) !important; }
+.app.dark .pg .tr[class*="type_"] { background-color: transparent !important; }
+
+/* ============================================================
+   page specific
+   ============================================================ */
+
+/* 活动: type colours become a slim marker instead of full-row fills */
+.app .pg-activity .tr[class*="type_"] { background: var(--surface) !important; box-shadow: inset 3px 0 0 var(--type, transparent); }
+.app .pg-activity .tr.type_0 { --type: #8b95a1; }
+.app .pg-activity .tr.type_1 { --type: #6366f1; }
+.app .pg-activity .tr.type_2 { --type: #22a06b; }
+.app .pg-activity .tr.type_3, .app .pg-activity .tr.type_4 { --type: #e5484d; }
+.app .pg-activity .tr.type_5 { --type: #e5a000; }
+.app .pg-activity .tr.type_6 { --type: #d6409f; }
+.app .pg-activity .tr.passed { color: var(--text-3) !important; }
+.app .pg-activity .tr.passed .td { color: var(--text-3) !important; }
+.app .pg-activity .tr.weekend { border-bottom: 1px solid var(--border-strong) !important; }
+.app .pg-activity .tr.curweek { background: color-mix(in srgb, var(--accent) 7%, var(--surface)) !important; }
+
+/* the new car card inside original pages: drop the old fixed-size frame */
+.app .pg .caritem:has(> .car-card), .app .pg .caritem:has(.car-card) {
+  border: 0 !important; height: auto !important; width: auto !important; max-width: 560px;
+  overflow: visible !important; margin: 16px auto !important; background: transparent !important; float: none !important;
+}

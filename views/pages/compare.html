@@ -1,0 +1,64 @@
+<!--
+  赛车对比 (pages/compare/compare) — desktop layout (opened from 地下赛 VS).
+  carsdata rows: [0] rarity, [1] name, [2] id, [3] type, then {key, datas, maxindex, isSameValue, group}.
+  Rows are grouped by their label: 蓝图 / 性能 / 最高时速 / 其他. Each cell shows the value plus a bar relative to
+  the row's largest value. "Best" (the original's maxindex) is highlighted only where higher really is better.
+  "只看不同" is a pure CSS toggle.
+-->
+<div class="v-page v-cmp" :style="{ '--n': carsdata?.[1]?.datas?.length || 1 }">
+  <div v-if="!(carsdata?.length > 3)" class="empty-state"><div class="empty-title">没有可对比的赛车</div></div>
+  <template v-else>
+    <!-- car cards -->
+    <div class="cmp-grid cmp-cards">
+      <div class="cmp-corner">
+        <div class="cmp-count">{{ carsdata[1].datas.length }} 辆赛车</div>
+        <label class="switch"><input type="checkbox" class="diff-only"><span class="switch-ui"></span>只看不同</label>
+      </div>
+      <button v-for="(name, j) in __list(carsdata[1].datas)" :key="j" type="button" class="cmp-card" :class="'r-' + carsdata[0].datas[j]"
+        @click="__nav($event, '../car/car?id=' + carsdata[2].datas[j], 'navigate')">
+        <span class="cmp-cover"><img :src="'https://nfsnl.oss-cn-beijing.aliyuncs.com/car/' + carsdata[2].datas[j] + '.jpg'" alt="" loading="lazy" @error="$event.target.closest('.cmp-cover').classList.add('noimg')"></span>
+        <span class="cmp-card-text">
+          <span class="cmp-card-name">{{ name }}</span>
+          <span class="cmp-card-type">{{ carsdata[3]?.datas?.[j] }}</span>
+        </span>
+      </button>
+    </div>
+
+    <!-- sticky compact header -->
+    <div class="cmp-grid cmp-sticky">
+      <div class="cmp-sticky-label">项目</div>
+      <div v-for="(name, j) in __list(carsdata[1].datas)" :key="j" class="cmp-sticky-car" :class="'r-' + carsdata[0].datas[j]">{{ name }}</div>
+    </div>
+
+    <template v-for="sec in [
+      { id: 'perf', title: '性能', sub: '极速 · 加速 · 氮气', best: true },
+      { id: 'speed', title: '最高时速', sub: 'km/h，按调校方案', best: true },
+      { id: 'bp', title: '升星所需蓝图', sub: '', best: false },
+      { id: 'other', title: '其他', sub: 'PR · 机修 · 扳手 · 价格', best: false }
+    ]" :key="sec.id">
+      <section class="cmp-sec">
+        <header class="cmp-sec-head"><h3>{{ sec.title }}</h3><span v-if="sec.sub" class="muted">{{ sec.sub }}</span></header>
+        <template v-for="(item, i) in __list(carsdata)" :key="i">
+          <div v-if="i > 3 && (
+                sec.id == 'bp' ? item.key.includes('需蓝图') :
+                sec.id == 'speed' ? /调极速$/.test(item.key) :
+                sec.id == 'perf' ? (/(极速|加速|氮气)$/.test(item.key) && !/调极速$/.test(item.key)) :
+                !(item.key.includes('需蓝图') || /(极速|加速|氮气)$/.test(item.key)))"
+            class="cmp-grid cmp-row" :class="{ same: item.isSameValue, 'stage-start': sec.id == 'perf' && /极速$/.test(item.key) }">
+            <div class="cmp-label">
+              <template v-if="sec.id == 'perf'">
+                <span class="cmp-stage">{{ item.key.replace(/(极速|加速|氮气)$/, '') }}</span><span class="cmp-stat">{{ item.key.slice(-2) }}</span>
+              </template>
+              <template v-else>{{ item.key }}</template>
+            </div>
+            <div v-for="(v, j) in __list(item.datas)" :key="j" class="cmp-cell"
+              :class="{ best: (sec.best || /PR$/.test(item.key)) && item.maxindex == j && !item.isSameValue }">
+              <span class="cmp-val">{{ v || '–' }}</span>
+              <span class="cmp-bar"><i :style="{ width: ((Number(v) || 0) * 100 / (Math.max(...item.datas.map(x => Number(x) || 0)) || 1)) + '%' }"></i></span>
+            </div>
+          </div>
+        </template>
+      </section>
+    </template>
+  </template>
+</div>

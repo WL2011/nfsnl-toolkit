@@ -1,0 +1,121 @@
+<!--
+  地下 (pages/underground/underground) — desktop layout.
+  Original handlers: bigswitchTab, carselected (click: highlight a car across weeks / expand a multi-choice slot),
+  carNavi (right click → car page), ScrollIntoView, ToggleIndex, ToggleAscending, FoldTeam, Copy, ToggleMission, EndRace.
+-->
+<div class="v-page v-under" v-scrolltop="currentNavName">
+  <div class="v-toolbar">
+    <div class="seg" role="tablist">
+      <button v-for="(name, idx) in __list(bignavTab)" :key="idx" type="button" class="seg-item" :class="{ on: currentNavName == idx }"
+        @click="__e($event, 'bigswitchTab', { idx: idx }, 'view', '')">{{ name }}</button>
+    </div>
+    <div v-if="currentNavName == 0 || currentNavName == 1" class="v-hint">点击赛车：高亮它在各周的位置 · 右键：查看赛车</div>
+    <div v-if="currentNavName == 2" class="v-actions">
+      <button type="button" class="chip-btn" @click="__e($event, 'ToggleAscending', {}, 'view', '')">{{ Ascending ? '正序' : '倒序' }} ⇅</button>
+      <button type="button" class="chip-btn danger" @click="__e($event, 'EndRace', {}, 'view', 'reset')">清除任务记录</button>
+    </div>
+  </div>
+
+  <!-- ================= 一轮用车 / 近期用车 ================= -->
+  <template v-if="currentNavName == 0 || currentNavName == 1">
+    <div v-if="currentNavName == 1" class="jump-row">
+      <span class="jump-label">跳转到</span>
+      <template v-for="(item, index) in __list(underground)" :key="index">
+        <button v-if="index % 6 == 0" type="button" class="chip small" @click="__e($event, 'ScrollIntoView', { idx: item.Date, idy: 'under_' }, 'view', '')">{{ item.Date }}</button>
+      </template>
+    </div>
+    <div class="wk-grid" v-into="toView">
+      <section v-for="(weekitem, i) in __list(currentNavName == 0 ? underground10 : underground)" :key="weekitem.Date" class="wk" :class="{ cur: weekitem.CurWeek }" :id="'under_' + weekitem.Date">
+        <header class="wk-head">
+          <img class="wk-theme" :src="ImageUrl + 'undertitle/' + (weekitem.themeid + 1) + '.jpg'" alt="" loading="lazy" @error="$event.target.style.display = 'none'">
+          <div class="wk-meta">
+            <div class="wk-date">{{ weekitem.Date }}</div>
+            <div class="wk-sub">第 {{ weekitem.round + 1 }} 轮 · 第 {{ weekitem.seq + 1 }} 周</div>
+          </div>
+          <span v-if="weekitem.CurWeek" class="wk-now">本周</span>
+        </header>
+        <div class="wk-cars">
+          <template v-for="(row, rank) in __list(weekitem.cars)" :key="rank">
+            <template v-for="(carid, j) in __list(row)" :key="j">
+              <div class="wk-cell" :class="['rk' + rank, { sel: carid == carselected, same: weekitem.IsSameCar?.[rank]?.[j], multi: carid?.length > 0 }]"
+                @click="__e($event, 'carselected', { idx: carid, idy: weekitem.Date }, 'view', '')"
+                @contextmenu.prevent="__e($event, 'carNavi', { idx: carid, idy: weekitem.Date }, 'view', '')">
+                <template v-if="carid?.length > 0">
+                  <span class="wk-name"><span class="multi-ico" title="该位置有多种选择，点击展开">⇄</span>{{ cars?.[carid[0]]?.ShortName }}</span>
+                  <div v-if="CarList?.[weekitem.Date]" class="wk-alts">
+                    <template v-for="(alt, k) in __list(carid)" :key="k">
+                      <button v-if="k > 0" type="button" class="car-link" @click.stop="__e($event, 'carNavi', { idx: alt }, 'view', '')">{{ cars?.[alt]?.ShortName }}</button>
+                    </template>
+                  </div>
+                </template>
+                <template v-else>
+                  <span v-if="weekitem.IsNew?.[rank]?.[j]" class="new-dot" title="新车"></span>
+                  <span class="wk-name" :class="{ full: currentNavName == 0 && MyGarage?.[carid]?.isFull }">{{ cars?.[carid]?.ShortName }}</span>
+                  <span class="wk-badges">
+                    <img v-if="weekitem.HasRR?.[rank]?.[j]" src="img/icon20_rr.png" title="当周有重跑活动" alt="">
+                    <img v-if="currentNavName == 0 && weekitem.IsVault?.[rank]?.[j]" src="img/vault.png" title="在赛事库中" alt="">
+                    <img v-if="weekitem.HasPC?.[rank]?.[j]" src="img/icon20_premiumcrate.png" title="码头金箱子里能开到" alt="">
+                    <img v-if="currentNavName == 0 && MyGarage?.[carid]?.isFull" src="img/crown.png" title="车库中该车全满" alt="">
+                  </span>
+                  <div v-if="currentNavName == 0 && MyGarage?.[carid] && !MyGarage?.[carid]?.isFull" class="wk-garage">
+                    <span class="wk-stars">{{ MyGarage[carid].starstring }}</span>
+                    <span class="wk-parts"><img v-for="(p, k) in __list(MyGarage[carid].parts)" :key="k" :src="'img/parts_small/' + p + '.gif'" alt=""></span>
+                  </div>
+                </template>
+              </div>
+            </template>
+          </template>
+          <template v-if="showvs">
+            <button v-for="j in [0, 1, 2]" :key="'vs' + j" type="button" class="wk-vs" title="对比这一列的三辆车 · 右键隐藏 VS"
+              @click="__e($event, 'compare', { idx: weekitem.cars?.[0]?.[j] + ',' + weekitem.cars?.[1]?.[j] + ',' + weekitem.cars?.[2]?.[j] }, 'view', '')"
+              @contextmenu.prevent="__e($event, 'HideVS', {}, 'view', '')">VS</button>
+          </template>
+        </div>
+      </section>
+    </div>
+    <p class="note center">赛程用车官方可能随时调整。本表依照官方预告制作，如与游戏内不一致，请以游戏里实时数据为准。</p>
+    <div class="legend-card">
+      <div class="legend-title">说明</div>
+      <div class="legend-grid">
+        <div><span class="lg-now">本周</span>当周赛程高亮显示</div>
+        <div><span class="lg-sel">已选</span>点击过的赛车在每一周都会高亮</div>
+        <div><span class="multi-ico">⇄</span>该位置有多种选择，点击展开</div>
+        <div><span class="new-dot static"></span>新车</div>
+        <div><img class="ico" src="img/icon20_rr.png" alt="">当周有重跑活动</div>
+        <div><img class="ico" src="img/vault.png" alt="">在赛事库中</div>
+        <div><img class="ico" src="img/icon20_premiumcrate.png" alt="">码头金箱子里能开到</div>
+        <div><span class="wk-stars">★★☆</span>我的车库中该车的星级和零件</div>
+        <div><img class="ico" src="img/crown.png" alt="">我的车库中该车全满</div>
+        <div><span class="wk-vs lg">VS</span>对比该列三辆车（右键隐藏）</div>
+      </div>
+    </div>
+  </template>
+
+  <!-- ================= 车队 ================= -->
+  <template v-if="currentNavName == 2">
+    <p class="note">点击任务标签切换完成状态（未完成 → 一半 → 完成），记录保存在本浏览器。排名不分先后。</p>
+    <div class="crew-grid">
+      <section v-for="(team, index) in __list(crewdatax)" :key="team.pk" class="crew-card" :class="{ folded: MyCrewData?.[team.pk]?.fold }">
+        <header class="crew-head">
+          <button type="button" class="crew-name" :title="MyCrewData?.[team.pk]?.fold ? '展开' : '收起'" @click="__e($event, 'FoldTeam', { idx: team.pk }, 'text', '')">
+            <span class="crew-idx">{{ index + 1 }}</span>{{ team.fields?.name }}
+          </button>
+          <button type="button" class="crew-id" title="复制车队 ID" @click="__e($event, 'Copy', { idx: team.pk }, 'button', '')">{{ team.pk }}</button>
+        </header>
+        <template v-if="!MyCrewData?.[team.pk]?.fold">
+          <div class="mission-row">
+            <span class="mission-k">个人</span>
+            <button v-for="(item, k) in __list(personal_type)" :key="k" type="button" class="msn" :class="['r-' + BPColors?.[k], 's' + (MyCrewData?.[team.pk]?.['p' + k] || 0)]"
+              @click="__e($event, 'ToggleMission', { idx: team.pk, idy: 'p' + k }, 'text', '')">{{ item }}</button>
+          </div>
+          <div class="mission-row">
+            <span class="mission-k">团队</span>
+            <button v-for="(item, k) in __list(group_type)" :key="k" type="button" class="msn" :class="['r-' + BPColors?.[k], 's' + (MyCrewData?.[team.pk]?.['g' + k] || 0)]"
+              @click="__e($event, 'ToggleMission', { idx: team.pk, idy: 'g' + k }, 'text', '')">{{ item }}</button>
+          </div>
+          <div class="crew-captain">队长 {{ team.fields?.captain }}</div>
+        </template>
+      </section>
+    </div>
+  </template>
+</div>
