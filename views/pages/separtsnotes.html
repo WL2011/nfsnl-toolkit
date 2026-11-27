@@ -55,8 +55,8 @@
           </div>
           <div class="mb-num">{{ (partModeSum?.[i < 20 ? 0 : (i < 30 ? 1 : 2)] - item - OwnedSEMaterials?.[i]) < 0 ? 0 : (partModeSum?.[i < 20 ? 0 : (i < 30 ? 1 : 2)] - item - OwnedSEMaterials?.[i]) }}</div>
           <div class="mb-ops">
-            <button type="button" class="mb-got" title="获得了 1 个（还需 −1）" @click="__e($event, 'add', { idx: i }, 'view', '')">−1</button>
             <button type="button" class="mb-undo" title="撤销 1 个（还需 +1）" @click="__e($event, 'sub', { idx: i }, 'view', '')">+1</button>
+            <button type="button" class="mb-got" title="获得了 1 个（还需 −1）" @click="__e($event, 'add', { idx: i }, 'view', '')">−1</button>
           </div>
         </div>
       </template>
