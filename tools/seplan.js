@@ -50,6 +50,17 @@ function match(car) {
   return ms.length === 1 ? ms[0].rs : null;
 }
 
+// A reference's PR label comes from that race's difficulty time, which can include a race-specific bonus
+// (e.g. Jaguar C-X75: identical stats labelled 764 and 794, one second apart). Stats never lower PR, so a label
+// higher than that of another reference with >= stats in every axis is not credible: use the lower one.
+function monotone(rs) {
+  return (rs || []).map(a => {
+    let pr = a[3];
+    for (const b of rs) if (b !== a && b[0] >= a[0] && b[1] >= a[1] && b[2] >= a[2] && b[3] < pr) pr = b[3];
+    return pr === a[3] ? a : [a[0], a[1], a[2], pr];
+  });
+}
+
 const safeName = k => k.replace(/[^A-Za-z0-9_.-]/g, '_');
 fs.rmSync(path.join(OUT, 'ev'), { recursive: true, force: true });
 fs.mkdirSync(path.join(OUT, 'ev'), { recursive: true });
@@ -69,7 +80,7 @@ for (const id of Object.keys(mpSes)) {
     for (const start of e.stock || []) { let n = start; const seen = new Set(); while (n && !seen.has(n) && model.nodes[n]) { seen.add(n); nodes[n] = model.nodes[n]; n = model.nodes[n].next; } }
     for (const ck of [e.ck, ...e.gates.map(g => g.ck)]) if (ck && model.curves[ck]) curves[ck] = model.curves[ck];
     const slim = { ...e, gates: e.gates.map(({ guide, guidePR, targets, ...g }) => ({ ...g, guide, guidePR, targets })) };
-    fs.writeFileSync(path.join(OUT, 'ev', v.f + '.json'), JSON.stringify({ k: v.k, event: slim, nodes, curves, refs: refs[e.cid] || [], prm: prm[e.cid] || null }));
+    fs.writeFileSync(path.join(OUT, 'ev', v.f + '.json'), JSON.stringify({ k: v.k, event: slim, nodes, curves, refs: monotone(refs[e.cid]), prm: prm[e.cid] || null }));
   }
 }
 // version tag for cache-busting the per-event files and the worker scripts
