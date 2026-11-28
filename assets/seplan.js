@@ -48,7 +48,7 @@
     if (!def) return;
     const orig = { onLoad: def.onLoad };
     Object.assign(def.data, {
-      planOn: false, planVers: [], planVer: 0, planGates: [], planGate: 0, planMode: 'total', planBusy: false, plan: null,
+      planOn: false, planVers: [], planVer: 0, planGates: [], planGate: 0, planMode: 'shop', planBusy: false, plan: null,
       aimState: '', aimPlan: null, need: {}, dropOf: {}, boardExtra: [],
     });
 
@@ -158,7 +158,7 @@
       useVersion(v) {
         const x = this.vers[v];
         this.setData({
-          planVer: v, planGate: x.gates.length - 1, planMode: 'total',
+          planVer: v, planGate: x.gates.length - 1, planMode: 'shop',
           planGates: x.gates.map((g, i) => ({ label: '第 ' + g[0] + ' 天 · 第 ' + g[1] + ' 场 · ' + g[2] + ' PR' + (i === x.gates.length - 1 ? '（最后一道锁）' : '') })),
         });
         this.runAim(); this.runPlan();
@@ -170,11 +170,11 @@
       },
       planPickGate(ev) { this.setData({ planGate: Number(ev.detail.value) }); this.runPlan(); },
       planPickMode(ev) { this.setData({ planMode: ev.currentTarget.dataset.v }); this.runPlan(); },
-      // aim = full route to the last lock, lowest total credits
+      // aim = full route to the last lock, fewest shop credits (same as the purchase list's default)
       runAim() {
         const x = this.vers[this.data.planVer];
         this.setData({ aimState: 'busy', aimPlan: null }); this.refreshNeed();
-        solve('aim:' + this.__key, this.ver, { f: x.f, last: x.gates.length - 1, mode: 'total' }).then(r => {
+        solve('aim:' + this.__key, this.ver, { f: x.f, last: x.gates.length - 1, mode: 'shop' }).then(r => {
           r = withNote(x.k, r);
           this.setData({ aimPlan: r, aimState: r.ok ? 'ok' : 'err' }); this.refreshNeed();
         }, () => {});
