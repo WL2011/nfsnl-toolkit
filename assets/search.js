@@ -20,6 +20,14 @@
     DELOREAN: ['德罗宁'], 'AUTOMOBILI-PININFARINA': ['宾尼法利纳', 'pininfarina'], SRT: ['克莱斯勒'],
     LOTUS: ['莲花'], HENNESSEY: ['轩尼诗'], BUGATTI: ['布加迪'], MASERATI: ['玛莎'], TOYOTA: ['丰田'],
   };
+  // special-event (特殊赛) types: index = Type in the mini program's ses / sesX data (SEType + B.R.A.V.O.)
+  const SE_TYPES = [
+    { cn: '剧情赛', en: 'Story', kw: 'story 剧情' }, { cn: 'XRC', en: 'Xtreme Racing Championship', kw: 'xrc 极限赛车锦标赛' },
+    { cn: '快车道', en: 'Fast Lane', kw: 'fastlane fastline fast lane 快车道' }, { cn: '试炼赛', en: 'Proving Grounds', kw: 'proving grounds pg 试炼' },
+    { cn: '突围赛', en: 'Breakout', kw: 'breakout blackridge 突围' }, { cn: '车队试炼', en: 'Crew Trials', kw: 'crew trials 车队' },
+    { cn: 'B.R.A.V.O.', en: 'B.R.A.V.O.', kw: 'bravo' },
+  ];
+  let SE = {}; // car id -> { type, name }
   const TAGS = [
     { k: 'HasSEs', t: '有特殊赛' }, { k: 'HasSePartData', t: '有零件数据' }, { k: 'Under', t: '地下赛用车' },
     { k: 'inPC', t: '金箱子' }, { k: 'crew', t: '车队箱' }, { k: 'CanWasteBuy', t: '废料兑换' }, { k: 'inVault', t: '保存库' },
@@ -72,6 +80,7 @@
         F(brandEn.replace(/-/g, ' '), 1), F(brandEn, 1), F(brandCn, 1), F((ALIASES[brandEn] || []).join(' '), 0.9),
         F(types?.[c.Type], 0.8), F(TYPES_EN[c.Type], 0.8), F(RARITY[c.BPColor], 0.8), F(year, 0.9),
         F(c.Name, 0.7), F(c.Name2052, 0.7),
+        ...(SE[id] ? [F(SE_TYPES[SE[id].type]?.cn, 0.8), F(SE_TYPES[SE[id].type]?.kw, 0.8), F(SE[id].name, 0.75)] : []),
       ].filter(f => f.text);
       INDEX.push({ id, c, fields, all: fields.map(f => f.text).join('|') });
     }
@@ -139,7 +148,7 @@
       // English model name under the Chinese one, only when it actually differs
       alt: lm == 0 && norm(String(c.Name).slice(String(c.Name).indexOf(' ') + 1)) !== norm(n.slice(sp + 1)) ? highlight(String(c.Name).slice(String(c.Name).indexOf(' ') + 1), toks) : '',
       pr0: c.PR?.[0] || 0, pr1: c.PR?.[1] || 0,
-      tags: TAGS.filter(t => c[t.k]).map(t => t.t),
+      tags: [...(SE[e.id] ? [SE_TYPES[SE[e.id].type]?.cn || '特殊赛'] : []), ...TAGS.filter(t => c[t.k] && !(t.k === 'HasSEs' && SE[e.id])).map(t => t.t)],
     };
   }
 
@@ -147,12 +156,15 @@
   window.__pagePatches.push(function (defs, req) {
     const def = defs[ROUTE];
     if (!def) return;
-    const data = req('data/data.js'), faqs = req('data/faqs.js').faqs || [];
+    const data = req('data/data.js'), faqs = req('data/faqs.js').faqs || [], sesMod = req('data/ses.js');
+    SE = {};
+    for (const src of [sesMod.sesX || {}, sesMod.ses || {}]) for (const k of Object.keys(src)) if (data.cars[k]) SE[k] = { type: src[k].Type, name: src[k].Name };
+    const seTypeList = SE_TYPES.map((t, i) => ({ v: i, cn: t.cn, en: t.en, n: Object.values(SE).filter(x => x.type === i).length })).filter(t => t.n);
     const cars = data.cars;
     const origStart = def.startsearch, origLoad = def.onLoad;
 
     Object.assign(def.data, {
-      query: '', filters: { r: [], t: [], g: [] }, sortBy: 'rel', sorts: SORTS, rarityNames: RARITY, typeNames: data.Types2052 || [],
+      query: '', filters: { r: [], t: [], g: [], s: [] }, seTypes: seTypeList, sortBy: 'rel', sorts: SORTS, rarityNames: RARITY, typeNames: data.Types2052 || [],
       tagList: [], results: [], total: 0, faqResults: [], faqAll: false, active: -1, history: [], recent: [], browsing: false,
     });
 
@@ -192,7 +204,7 @@
         const i = f[g].indexOf(v); i >= 0 ? f[g].splice(i, 1) : f[g].push(v);
         this.setData({ filters: f }); this.run();
       },
-      clearFilters() { this.setData({ filters: { r: [], t: [], g: [] } }); this.run(); },
+      clearFilters() { this.setData({ filters: { r: [], t: [], g: [], s: [] } }); this.run(); },
       setSort(ev) { this.setData({ sortBy: ev.currentTarget.dataset.v }); this.run(); },
       toggleFaqAll() { this.setData({ faqAll: !this.data.faqAll }); },
       // --- search ------------------------------------------------------------------------
@@ -200,7 +212,8 @@
         if (!INDEX) return;
         const q = this.data.query || '', f = this.data.filters, lm = this.data.langMode;
         const toks = tokenize(q), compact = norm(q);
-        const hasFilter = f.r.length || f.t.length || f.g.length;
+        if (!f.s) f.s = [];
+        const hasFilter = f.r.length || f.t.length || f.g.length || f.s.length;
         if (!toks.length && !hasFilter) { this.setData({ results: [], total: 0, faqResults: [], active: -1, browsing: false }); return; }
         let list = [];
         for (const e of INDEX) {
@@ -208,6 +221,7 @@
           if (f.r.length && !f.r.includes(c.BPColor)) continue;
           if (f.t.length && !f.t.includes(c.Type)) continue;
           if (f.g.length && !f.g.every(k => c[k])) continue;
+          if (f.s.length && !(SE[e.id] && f.s.includes(SE[e.id].type))) continue;
           const s = toks.length ? scoreCar(e, toks, compact) : 1;
           if (s > 0) list.push({ e, s });
         }

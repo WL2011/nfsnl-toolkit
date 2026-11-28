@@ -8,7 +8,7 @@
     <svg class="search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
     <input class="search-input" type="text" autofocus autocomplete="off" spellcheck="false"
       :value="query"
-      :placeholder="'车名、品牌、简称、类别、稀有度或问题，可空格分隔多个词　例：' + (hotkeyword || '兰博 超跑')"
+      :placeholder="'车名、品牌、简称、类别、稀有度、特殊赛或问题，可空格分隔多个词　例：' + (hotkeyword || '兰博 超跑')"
       @input="__e($event, 'searchValueInput', {}, 'input', '')"
       @keydown="__searchKey($event)">
     <button v-if="query" type="button" class="search-clear" title="清除 (Esc)" @click="__e($event, 'deleteTxt', {}, 'icon', '')">×</button>
@@ -27,6 +27,11 @@
       <button v-for="(name, i) in __list(typeNames)" :key="i" type="button" class="sf-chip" :class="{ on: filters.t.includes(i) }"
         @click="__e($event, 'toggleFilter', { g: 't', v: i }, 'view', '')"><img :src="'img/cartype' + (i + 1) + '.gif'" alt="">{{ name }}</button>
     </div>
+    <div v-if="seTypes?.length" class="sf-row">
+      <span class="sf-k">特殊赛</span>
+      <button v-for="t in __list(seTypes)" :key="t.v" type="button" class="sf-chip" :class="{ on: filters.s?.includes(t.v) }" :title="t.en + ' · ' + t.n + ' 辆'"
+        @click="__e($event, 'toggleFilter', { g: 's', v: t.v }, 'view', '')">{{ t.cn }}<span v-if="t.en != t.cn" class="sf-en">{{ t.en }}</span></button>
+    </div>
     <div v-if="tagList?.length" class="sf-row">
       <span class="sf-k">标签</span>
       <button v-for="t in __list(tagList)" :key="t.k" type="button" class="sf-chip" :class="{ on: filters.g.includes(t.k) }"
@@ -35,11 +40,11 @@
   </div>
 
   <!-- results -->
-  <template v-if="query || filters.r.length || filters.t.length || filters.g.length">
+  <template v-if="query || filters.r.length || filters.t.length || filters.g.length || filters.s?.length">
     <div class="sr-bar">
       <div class="sr-count">
         <b>{{ total }}</b> 辆赛车<template v-if="faqResults?.length"> · <b>{{ faqResults.length }}</b> 条问题</template>
-        <button v-if="filters.r.length || filters.t.length || filters.g.length" type="button" class="link-btn" @click="__e($event, 'clearFilters', {}, 'view', '')">清除筛选</button>
+        <button v-if="filters.r.length || filters.t.length || filters.g.length || filters.s?.length" type="button" class="link-btn" @click="__e($event, 'clearFilters', {}, 'view', '')">清除筛选</button>
       </div>
       <div v-if="total > 1" class="seg sm">
         <template v-for="s in __list(sorts)" :key="s.v">
@@ -90,7 +95,7 @@
   </template>
 
   <!-- start page: history, recently viewed, brands -->
-  <template v-if="!query && !filters.r.length && !filters.t.length && !filters.g.length">
+  <template v-if="!query && !filters.r.length && !filters.t.length && !filters.g.length && !filters.s?.length">
     <div v-if="history?.length" class="s-block">
       <div class="v-section-title">最近搜索 <button type="button" class="link-btn" @click="__e($event, 'clearHistory', {}, 'view', '')">清空</button></div>
       <div class="hist">
