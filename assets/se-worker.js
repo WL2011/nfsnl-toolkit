@@ -26,37 +26,42 @@ const getJSON = url => fetch(url).then(r => { if (!r.ok) throw new Error('数据
 self.onmessage = async ev => {
   // scope 'last': only the target lock (all earlier rewards counted, earlier locks ignored) — the default;
   // scope 'route': every lock up to the target must be passed
-  const { f, last, mode, scope = 'last' } = ev.data, single = scope !== 'route', opts = single ? { single: true } : {};
+  const { f, last, mode, scope = 'last' } = ev.data, single = scope !== 'route';
   try {
     if (!index) index = await getJSON('../data/seplan/index.json?v=' + VER);
     const s = await getJSON('../data/seplan/ev/' + f + '.json?v=' + VER);
+    // Cars whose fitted PR model is a bit less accurate (0.03 s < cv <= 0.04 s) may also use the three-stat
+    // trade-off, with 1 PR more safety margin. Checked against the community guides: same behaviour as well-fitted cars.
+    const cv = s.prm && s.prm.cv, loose = cv > 0.03 && cv <= LOOSE_CV;
+    const tune = loose ? { maxCV: LOOSE_CV, tradeMargin: 1.5 } : {}, opts = single ? { ...tune, single: true } : tune;
     const data = { events: { [s.k]: s.event }, nodes: s.nodes, curves: s.curves, refs: { [s.event.cid]: s.refs }, prm: { [s.event.cid]: s.prm }, prtime: index.prtime };
     let v = SERoute.solve(data, s.k, last, {}, mode, opts), forced = [];
     // A lock the data can't prove (no reference reachable at that star level): calculate it anyway as
     // "all six parts fully upgraded at that star", and flag it. route.js itself is unchanged.
     if (v.error && /找不到能过每道锁|找不到同车达到这道锁/.test(v.error)) {
-      const fb = fallback(data, s, single ? [last] : [...Array(last + 1).keys()], mode);
+      const fb = fallback(data, s, single ? [last] : [...Array(last + 1).keys()], mode, tune);
       if (fb) { forced = fb.forced; const w = SERoute.solve(fb.data, s.k, last, {}, mode, opts); if (!w.error) { v = w; Object.assign(data, fb.data); } }
     }
     if (v.error) { postMessage({ error: v.error }); return; }
     // the other scope, as a reference figure (optional)
     let ref = null;
-    try { const q = SERoute.solve(data, s.k, last, {}, mode, single ? { timeLimit: 4000 } : { single: true }); if (!q.error) ref = { shop: q.shop, total: q.total }; } catch (e) { /* optional */ }
-    postMessage({ ...view(v, ref, s, data, mode, forced), scope: single ? 'last' : 'route' });
+    try { const q = SERoute.solve(data, s.k, last, {}, mode, single ? { ...tune, timeLimit: 4000 } : { ...tune, single: true }); if (!q.error) ref = { shop: q.shop, total: q.total }; } catch (e) { /* optional */ }
+    postMessage({ ...view(v, ref, s, data, mode, forced), scope: single ? 'last' : 'route', loose: loose ? Math.round(cv * 1000) / 1000 : 0 });
   } catch (e) {
     postMessage({ error: '计算出错：' + (e && e.message || e) });
   }
 };
 
 const AXN = ['极速', '加速', '氮气'];
-function fallback(data, s, gates, mode) {
+const LOOSE_CV = 0.04;
+function fallback(data, s, gates, mode, tune = {}) {
   const e = s.event, I = SERoute._internal, L = e.stock.map(id => I.chain(data.nodes, id, e.currency));
   if (L.some(l => !l.length)) return null;
   const extra = [], forced = [];
   for (const g of gates) {
     const G = e.gates[g], cs = data.curves[G.ck];
     if (!cs) return null;
-    const one = SERoute.solve(data, s.k, g, {}, mode, { single: true, timeLimit: 3000 });
+    const one = SERoute.solve(data, s.k, g, {}, mode, { ...tune, single: true, timeLimit: 3000 });
     if (!one.error) continue;
     if (!/找不到能过每道锁|找不到同车达到这道锁/.test(one.error)) return null;
     const top = I.topStats(L, cs, G.star).map(x => Math.floor(x - 1e-6));
