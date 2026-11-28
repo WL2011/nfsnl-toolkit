@@ -104,6 +104,7 @@
         <p v-if="plan.lb && (planMode == 'shop' ? plan.lb.shop : plan.lb.total) < (planMode == 'shop' ? plan.shop : plan.total)" class="note">
           只看这一道锁、不管前面的锁，最低是 {{ (planMode == 'shop' ? plan.lb.shop : plan.lb.total).toLocaleString('zh-CN') }}；多出的 {{ ((planMode == 'shop' ? plan.shop - plan.lb.shop : plan.total - plan.lb.total)).toLocaleString('zh-CN') }} 是为了先过前面的锁、在奖励发下来之前提前买的。</p>
         <p v-if="plan.guided.length" class="plan-warn">{{ plan.guided.join('、') }}：数据里只有这一关的推荐三围，没有同车达到这道锁的参考，按推荐三围计算，不保证能过。</p>
+        <p v-if="plan.forced?.length" class="plan-warn">数据证明不了能过、按当时星级六件全部升满计算的锁（不保证过锁，升满后看车库 PR）：<template v-for="(t, n) in plan.forced" :key="n"><br>{{ t }}</template></p>
         <p v-if="plan.maxed.length" class="plan-warn">{{ plan.maxed.join('、') }}：当时星级下六件全部升满才勉强够（估算），请升满后看车库 PR。</p>
 
         <div class="plan-sub">逐锁采购 <span class="muted">每段只买刚好够过这道锁的</span></div>
@@ -111,7 +112,7 @@
           <table>
             <thead><tr><th>设锁关卡</th><th>PR 锁</th><th>这一段要买</th><th class="r">本段采购</th><th class="r">累计{{ planMode == 'shop' ? '采购' : '总支出' }}</th><th>过锁依据</th></tr></thead>
             <tbody>
-              <tr v-for="(l, n) in plan.locks" :key="n" :class="{ warn: l.basis == 'guide' || l.basis == 'max' }">
+              <tr v-for="(l, n) in plan.locks" :key="n" :class="{ warn: l.basis == 'guide' || l.basis == 'max' || l.basis == 'forced' }">
                 <td class="nowrap">第 {{ l.day }} 天 · 第 {{ l.race }} 场</td>
                 <td><b>{{ l.wall }}</b> <span class="muted">{{ l.star }}★</span></td>
                 <td>{{ l.buys }}
