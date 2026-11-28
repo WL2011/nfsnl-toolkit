@@ -31,29 +31,36 @@
   <div class="v-section-title">零件目标</div>
   <div class="aim-row">
     <template v-for="(item, index) in __list(aims)" :key="item.id">
-      <button v-if="index > aims.length - 4" type="button" class="aim" :class="['r-' + item.colorIndex, { on: SESelectedPartMode == item.id }]"
+      <button v-if="index > aims.length - 3" type="button" class="aim" :class="['r-' + item.colorIndex, { on: SESelectedPartMode == item.id }]"
         @click="__e($event, 'selectMode', { idx: item.id }, 'view', '')">
         <span class="aim-name">{{ item.name }}</span>
         <span class="aim-desc">{{ item.desc }}</span>
       </button>
     </template>
+    <button v-if="planOn" type="button" class="aim aim-cheap" :class="{ on: SESelectedPartMode == 'cheap', off: aimState == 'err' }"
+      title="按全程最省积分路线（每道 PR 锁都要过）所需的材料来记录" @click="__e($event, 'selectMode', { idx: 'cheap' }, 'view', '')">
+      <span class="aim-name">最省钱方案</span>
+      <span class="aim-desc" v-if="aimState == 'ok'">约 {{ aimPlan.total.toLocaleString('zh-CN') }} 积分 · 须买 {{ aimPlan.tier[0] }}灰{{ aimPlan.tier[1] }}绿{{ aimPlan.tier[2] }}套件</span>
+      <span class="aim-desc" v-else-if="aimState == 'busy'"><span class="spinner sm"></span>正在计算全程最省路线…</span>
+      <span class="aim-desc" v-else>该赛事暂时算不出，见下方采购清单</span>
+    </button>
   </div>
-  <p class="note">上述配置不能保证达到赛事最低 PR 要求，请以游戏内为准。</p>
+  <p class="note">上述配置不能保证达到赛事最低 PR 要求，请以游戏内为准。<template v-if="SESelectedPartMode == 'cheap'">「最省钱方案」的目标是全程最省路线最终需要的材料，「锁前必得」是最后一道锁之前确定能领到的材料；套件以外的特殊材料见采购清单。</template></p>
 
-  <div class="v-section-title">材料进度 <span class="muted">数字 = 距离目标还需的数量（已扣除各关卡自然掉落）</span></div>
+  <div class="v-section-title">材料进度 <span class="muted">数字 = 距离目标还需的数量（{{ SESelectedPartMode == 'cheap' ? '已扣除锁前必得材料' : '已扣除各关卡自然掉落' }}）</span></div>
   <div class="mat-board">
     <div class="mb-head"><span></span><span class="m-g">灰色材料</span><span class="m-u">绿色材料</span><span class="m-k">套件</span></div>
     <div v-for="slot in [1, 2, 3, 4, 5, 6]" :key="slot" class="mb-row">
       <span class="mb-slot">零件 {{ slot }}</span>
       <template v-for="(item, i) in materialsCount" :key="i">
         <div v-if="i % 10 == slot && i < 800" class="mb-cell"
-          :class="[i < 20 ? 'm-g' : (i < 30 ? 'm-u' : 'm-k'), { done: item + OwnedSEMaterials?.[i] >= partModeSum?.[i < 20 ? 0 : (i < 30 ? 1 : 2)] }]">
+          :class="[i < 20 ? 'm-g' : (i < 30 ? 'm-u' : 'm-k'), { done: (dropOf?.[i] || 0) + (OwnedSEMaterials?.[i] || 0) >= (need?.[i] || 0), none: SESelectedPartMode == 'cheap' && !need?.[i] }]">
           <img class="mb-img" :src="newOldMode == 0 ? (ImageUrl + 'materialimgs_new/' + i + '.gif') : (ImageUrl + 'materialimgs/' + i + '.png')" alt="" loading="lazy">
           <div class="mb-info">
             <div class="mb-name">{{ materials?.[newOldMode]?.[i]?.['name' + langIDs?.[langMode]] }}</div>
-            <div class="mb-sub">已获得 {{ OwnedSEMaterials?.[i] || 0 }} · 关卡掉落 {{ item }}</div>
+            <div class="mb-sub">已获得 {{ OwnedSEMaterials?.[i] || 0 }} · {{ SESelectedPartMode == 'cheap' ? '锁前必得 ' + (dropOf?.[i] || 0) + ' · 共需 ' + (need?.[i] || 0) : '关卡掉落 ' + item }}</div>
           </div>
-          <div class="mb-num">{{ (partModeSum?.[i < 20 ? 0 : (i < 30 ? 1 : 2)] - item - OwnedSEMaterials?.[i]) < 0 ? 0 : (partModeSum?.[i < 20 ? 0 : (i < 30 ? 1 : 2)] - item - OwnedSEMaterials?.[i]) }}</div>
+          <div class="mb-num">{{ Math.max(0, (need?.[i] || 0) - (dropOf?.[i] || 0) - (OwnedSEMaterials?.[i] || 0)) }}</div>
           <div class="mb-ops">
             <button type="button" class="mb-undo" title="撤销 1 个（还需 +1）" @click="__e($event, 'sub', { idx: i }, 'view', '')">+1</button>
             <button type="button" class="mb-got" title="获得了 1 个（还需 −1）" @click="__e($event, 'add', { idx: i }, 'view', '')">−1</button>
@@ -63,12 +70,94 @@
     </div>
   </div>
 
+  <template v-if="planOn">
+    <div class="v-section-title">采购清单 <span class="muted">全程最省积分路线 · 每道 PR 锁都要过</span></div>
+    <section class="plan">
+      <div class="plan-ctl">
+        <label v-if="planVers.length > 1" class="plan-f"><span>赛事版本</span>
+          <x-picker :range="planVers" range-key="label" :value="planVer" @change="__e($event, 'planPickVer', {}, 'picker', '')"><span class="select-like">{{ planVers[planVer]?.label }}</span></x-picker>
+        </label>
+        <label class="plan-f"><span>目标 PR 锁</span>
+          <x-picker :range="planGates" range-key="label" :value="planGate" @change="__e($event, 'planPickGate', {}, 'picker', '')"><span class="select-like">{{ planGates[planGate]?.label }}</span></x-picker>
+        </label>
+        <div class="plan-f"><span>优先省</span>
+          <div class="seg sm">
+            <button type="button" class="seg-item" :class="{ on: planMode == 'total' }" @click="__e($event, 'planPickMode', { v: 'total' }, 'view', '')">总积分</button>
+            <button type="button" class="seg-item" :class="{ on: planMode == 'shop' }" @click="__e($event, 'planPickMode', { v: 'shop' }, 'view', '')">商店采购</button>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="planBusy" class="plan-busy"><span class="spinner"></span>正在计算全程最省路线（复杂赛事最多十几秒）…</div>
+      <div v-else-if="plan?.error" class="plan-err">{{ plan.error }}</div>
+      <template v-else-if="plan?.ok">
+        <div class="plan-head">
+          <h3>开赛到第 {{ plan.last.day }} 天第 {{ plan.last.race }} 场（{{ plan.last.wall }} PR）最少 <b>{{ (planMode == 'shop' ? plan.shop : plan.total).toLocaleString('zh-CN') }}</b> {{ planMode == 'shop' ? '采购积分' : '积分' }}</h3>
+          <span class="plan-badge" :class="{ warn: !plan.optimal }">{{ plan.optimal ? '已证明是这套标准下的最低' : plan.why }}</span>
+        </div>
+        <div class="plan-kpis">
+          <div><span>总支出</span><b>{{ plan.total.toLocaleString('zh-CN') }}</b></div>
+          <div><span>商店采购</span><b>{{ plan.shop.toLocaleString('zh-CN') }}</b></div>
+          <div><span>安装材料</span><b>{{ plan.fit.toLocaleString('zh-CN') }}</b></div>
+          <div><span>重建部件</span><b>{{ plan.rebuild.toLocaleString('zh-CN') }}</b></div>
+        </div>
+        <p v-if="plan.lb && (planMode == 'shop' ? plan.lb.shop : plan.lb.total) < (planMode == 'shop' ? plan.shop : plan.total)" class="note">
+          只看这一道锁、不管前面的锁，最低是 {{ (planMode == 'shop' ? plan.lb.shop : plan.lb.total).toLocaleString('zh-CN') }}；多出的 {{ ((planMode == 'shop' ? plan.shop - plan.lb.shop : plan.total - plan.lb.total)).toLocaleString('zh-CN') }} 是为了先过前面的锁、在奖励发下来之前提前买的。</p>
+        <p v-if="plan.guided.length" class="plan-warn">{{ plan.guided.join('、') }}：数据里只有这一关的推荐三围，没有同车达到这道锁的参考，按推荐三围计算，不保证能过。</p>
+        <p v-if="plan.maxed.length" class="plan-warn">{{ plan.maxed.join('、') }}：当时星级下六件全部升满才勉强够（估算），请升满后看车库 PR。</p>
+
+        <div class="plan-sub">逐锁采购 <span class="muted">每段只买刚好够过这道锁的</span></div>
+        <div class="plan-table">
+          <table>
+            <thead><tr><th>设锁关卡</th><th>PR 锁</th><th>这一段要买</th><th class="r">本段采购</th><th class="r">累计{{ planMode == 'shop' ? '采购' : '总支出' }}</th><th>过锁依据</th></tr></thead>
+            <tbody>
+              <tr v-for="(l, n) in plan.locks" :key="n" :class="{ warn: l.basis == 'guide' || l.basis == 'max' }">
+                <td class="nowrap">第 {{ l.day }} 天 · 第 {{ l.race }} 场</td>
+                <td><b>{{ l.wall }}</b> <span class="muted">{{ l.star }}★</span></td>
+                <td>{{ l.buys }}
+                  <details v-if="l.change.length" class="plan-chg"><summary>升级</summary><div v-for="c in l.change" :key="c">{{ c }}</div></details>
+                </td>
+                <td class="r">{{ l.shop.toLocaleString('zh-CN') }}</td>
+                <td class="r">{{ l.cum.toLocaleString('zh-CN') }}</td>
+                <td class="basis">{{ l.basisText }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="plan-sub">全程累计采购清单 <span class="muted">「已获得」取自上方材料记录</span></div>
+        <div class="plan-table">
+          <table>
+            <thead><tr><th>材料</th><th class="r">需用</th><th class="r">锁前必得</th><th class="r">须买</th><th class="r">单价</th><th class="r">小计</th><th class="r">已获得</th><th class="r">还要买</th></tr></thead>
+            <tbody>
+              <tr v-for="it in plan.items" :key="it.id" :class="{ dim: !it.buy }">
+                <td>{{ it.name }}</td><td class="r">{{ it.gross }}</td><td class="r">{{ it.free }}</td><td class="r"><b>{{ it.buy }}</b></td>
+                <td class="r">{{ it.unit == null ? '—' : it.unit.toLocaleString('zh-CN') }}</td>
+                <td class="r">{{ it.unit == null ? '—' : (it.buy * it.unit).toLocaleString('zh-CN') }}</td>
+                <td class="r">{{ it.idx != null ? (OwnedSEMaterials?.[it.idx] || 0) : '—' }}</td>
+                <td class="r owed">{{ Math.max(0, it.buy - (it.idx != null ? (OwnedSEMaterials?.[it.idx] || 0) : 0)) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <details class="plan-final">
+          <summary>六件最终升到哪里</summary>
+          <p class="note">从赛事原厂件起，低于下列目标层的材料槽依次装满并重建；到目标层只装列出的槽位。</p>
+          <div class="plan-parts"><div v-for="x in plan.final" :key="x.part"><b>{{ x.part }}</b><span>{{ x.desc }}</span></div></div>
+        </details>
+        <p class="note">过锁标准来自同车 2 万多条关卡数据的拟合，不是游戏真正的 PR 公式，结果是估算。每次升级后看车库 PR，达到门槛就可以停。随机翻牌、付费刷新、额外蓝图不预支。</p>
+      </template>
+    </section>
+  </template>
+
   <details class="panel help">
     <summary class="panel-head"><h3>使用说明</h3><span class="panel-en">首次定目标，获得后点 −1</span><span class="panel-chev">›</span></summary>
     <div class="panel-body">
       <p class="warn">记录只保存在当前浏览器，换浏览器或清除浏览器数据后不会保留。</p>
       <ol class="help-list">
-        <li>先选择想要达到的零件目标（如紫 4、紫 5），会自动记住。</li>
+        <li>先选择想要达到的零件目标（如紫 4、紫 5，或「最省钱方案」），会自动记住。</li>
+        <li>「最省钱方案」按全程最省积分路线算目标：每道 PR 锁都要过、每道锁只用当时已领到的奖励。各锁前具体买什么见「采购清单」。</li>
         <li>根据目标和该车的零件升级模式，减去所有关卡掉落后，算出距离目标各还需多少材料（需重跑或购买）。</li>
         <li>购买或重跑获得材料后，点该材料的 <b>−1</b>；关卡自然掉落的材料无需扣减。</li>
         <li>点错了可以点 <b>+1</b> 加回来；上限为当前目标所需数量，下限为 0。</li>

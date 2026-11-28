@@ -12,7 +12,7 @@
 | 赛车详情 | `pages/car/car` | 重新设计（`views/pages/car.html`） |
 | 搜索 | `pages/search/search` | 重新设计（`views/pages/search.html`），搜索逻辑升级在 `assets/search.js` |
 | 特殊赛信息 | `pages/se/se` | 重新设计（`views/pages/se.html`） |
-| 特殊赛零件计算器「肝它」 | `pages/separtsnotes/separtsnotes` | 重新设计（`views/pages/separtsnotes.html`） |
+| 特殊赛零件计算器「肝它」 | `pages/separtsnotes/separtsnotes` | 重新设计（`views/pages/separtsnotes.html`），新增「最省钱方案」目标和采购清单（`assets/seplan.js`） |
 | 赛车对比（地下赛 VS） | `pages/compare/compare` | 重新设计（`views/pages/compare.html`） |
 
 其余页面（零件、信息、各种一览、我的车库统计、数据导入/导出等）已移除；原小程序里指向它们的入口会提示"该功能已移除"。想恢复某个页面，把它加回 `KEEP` 再重新构建即可。
@@ -36,6 +36,10 @@ python3 -m http.server 5173
 | `index.html` | 入口 |
 | `assets/runtime.js` | 运行时：模块加载器、`wx.*` 接口兼容层、`Page()/App()`、路由与页面栈、选择器/轮播组件 |
 | `assets/search.js` | 搜索升级：多关键词排序匹配、别称/容错、筛选排序、最近搜索、键盘与 / 、Ctrl/⌘+K 快捷键 |
+| `assets/seplan.js` | 肝它升级：「最省钱方案」目标 + 采购清单（全程最省积分路线），结果缓存在浏览器 |
+| `assets/se-worker.js` | 在后台线程里跑求解器，返回整理好的采购清单 |
+| `assets/se-route.js` | 求解器，从 Codex 采购计算器 `optimizer/v3/route.js` 原样复制（由 `tools/seplan.js` 更新） |
+| `data/seplan/` | 采购清单数据：`index.json`（小程序车 → 赛事版本）+ `ev/<赛事>.json`（单个赛事求解数据，按需加载） |
 | `assets/shell.js` | 桌面外壳：左侧导航、顶栏、弹窗/提示/看图 |
 | `assets/theme.css` | 设计变量（颜色、圆角、深色模式）+ 外壳样式 |
 | `assets/overrides.css` | 把原页面样式现代化的覆盖层 |
@@ -45,6 +49,7 @@ python3 -m http.server 5173
 | `source/unpacked/` | 解包出来的原小程序 |
 | `source/wxml/` | 反编译出来的可读 WXML（仅供参考） |
 | `tools/build.js` | 构建脚本 |
+| `tools/seplan.js` | 生成 `data/seplan/`，并复制求解器到 `assets/se-route.js` |
 | `tools/wxdec.py` | 解密 PC/Mac 微信缓存里的 `.wxapkg` |
 
 ## 在线访问
@@ -63,6 +68,12 @@ node --expose-internals tools/build.js
 ```
 
 （`--expose-internals` 用来调用 Node 自带的 JS 解析器，不需要额外安装。）
+
+采购清单数据来自 Codex 采购计算器项目（`/Users/williamlin/Documents/Codex/NFS mod/NFSNL-SE-PR-20261121`，只在这台 Mac 上）。那边更新了数据或求解器之后，先跑上面的构建，再运行：
+
+```bash
+node tools/seplan.js
+```
 
 - **重做某个页面**：在 `views/pages/<页面名>.html` 写 Vue 模板（例如 `views/pages/index.html`），重新构建即可替换原页面。模板里直接用原页面的数据字段，事件用 `__e($event, '方法名', {数据集}, '标签', 'id')` 调用原页面方法，跳转用 `__nav($event, url, 'navigate')`。
 - **共用模板**：`views/templates/<模板名>.html`（例如车辆卡片 `caritem`），新页面里用 `<include-template name="caritem" />` 引入。
