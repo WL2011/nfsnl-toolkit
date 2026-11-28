@@ -58,7 +58,7 @@
           <img class="mb-img" :src="newOldMode == 0 ? (ImageUrl + 'materialimgs_new/' + i + '.gif') : (ImageUrl + 'materialimgs/' + i + '.png')" alt="" loading="lazy">
           <div class="mb-info">
             <div class="mb-name">{{ materials?.[newOldMode]?.[i]?.['name' + langIDs?.[langMode]] }}</div>
-            <div class="mb-sub">已获得 {{ OwnedSEMaterials?.[i] || 0 }} · 关卡掉落 {{ dropOf?.[i] ?? item }}</div>
+            <div class="mb-sub">已获得 {{ OwnedSEMaterials?.[i] || 0 }} · {{ SESelectedPartMode == 'cheap' ? '共需购买 ' + Math.max(0, (need?.[i] || 0) - (dropOf?.[i] || 0)) : '关卡掉落 ' + item }}</div>
           </div>
           <div class="mb-num">{{ Math.max(0, (need?.[i] || 0) - (dropOf?.[i] || 0) - (OwnedSEMaterials?.[i] || 0)) }}</div>
           <div class="mb-ops">
