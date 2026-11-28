@@ -24,33 +24,36 @@ let index = null;
 const getJSON = url => fetch(url).then(r => { if (!r.ok) throw new Error('数据下载失败（' + r.status + '）'); return r.json(); });
 
 self.onmessage = async ev => {
-  const { f, last, mode } = ev.data;
+  // scope 'last': only the target lock (all earlier rewards counted, earlier locks ignored) — the default;
+  // scope 'route': every lock up to the target must be passed
+  const { f, last, mode, scope = 'last' } = ev.data, single = scope !== 'route', opts = single ? { single: true } : {};
   try {
     if (!index) index = await getJSON('../data/seplan/index.json?v=' + VER);
     const s = await getJSON('../data/seplan/ev/' + f + '.json?v=' + VER);
     const data = { events: { [s.k]: s.event }, nodes: s.nodes, curves: s.curves, refs: { [s.event.cid]: s.refs }, prm: { [s.event.cid]: s.prm }, prtime: index.prtime };
-    let v = SERoute.solve(data, s.k, last, {}, mode), forced = [];
+    let v = SERoute.solve(data, s.k, last, {}, mode, opts), forced = [];
     // A lock the data can't prove (no reference reachable at that star level): calculate it anyway as
     // "all six parts fully upgraded at that star", and flag it. route.js itself is unchanged.
     if (v.error && /找不到能过每道锁|找不到同车达到这道锁/.test(v.error)) {
-      const fb = fallback(data, s, last, mode);
-      if (fb) { forced = fb.forced; const w = SERoute.solve(fb.data, s.k, last, {}, mode); if (!w.error) { v = w; Object.assign(data, fb.data); } }
+      const fb = fallback(data, s, single ? [last] : [...Array(last + 1).keys()], mode);
+      if (fb) { forced = fb.forced; const w = SERoute.solve(fb.data, s.k, last, {}, mode, opts); if (!w.error) { v = w; Object.assign(data, fb.data); } }
     }
     if (v.error) { postMessage({ error: v.error }); return; }
-    let lb = null;
-    try { const q = SERoute.solve(data, s.k, last, {}, mode, { single: true }); if (!q.error) lb = { shop: q.shop, total: q.total }; } catch (e) { /* lower bound is optional */ }
-    postMessage(view(v, lb, s, data, mode, forced));
+    // the other scope, as a reference figure (optional)
+    let ref = null;
+    try { const q = SERoute.solve(data, s.k, last, {}, mode, single ? { timeLimit: 4000 } : { single: true }); if (!q.error) ref = { shop: q.shop, total: q.total }; } catch (e) { /* optional */ }
+    postMessage({ ...view(v, ref, s, data, mode, forced), scope: single ? 'last' : 'route' });
   } catch (e) {
     postMessage({ error: '计算出错：' + (e && e.message || e) });
   }
 };
 
 const AXN = ['极速', '加速', '氮气'];
-function fallback(data, s, last, mode) {
+function fallback(data, s, gates, mode) {
   const e = s.event, I = SERoute._internal, L = e.stock.map(id => I.chain(data.nodes, id, e.currency));
   if (L.some(l => !l.length)) return null;
   const extra = [], forced = [];
-  for (let g = 0; g <= last; g++) {
+  for (const g of gates) {
     const G = e.gates[g], cs = data.curves[G.ck];
     if (!cs) return null;
     const one = SERoute.solve(data, s.k, g, {}, mode, { single: true, timeLimit: 3000 });
@@ -70,7 +73,7 @@ function fallback(data, s, last, mode) {
   return { data: { ...data, refs }, forced };
 }
 
-function view(v, lb, s, data, mode, forced = []) {
+function view(v, ref, s, data, mode, forced = []) {
   const names = index.names, name = id => String(names[id] || id).replace(/^限时\s*/, '');
   const desc = (id, mask) => {
     const n = data.nodes[id]; if (!n) return id;
@@ -96,7 +99,7 @@ function view(v, lb, s, data, mode, forced = []) {
     ok: true, k: s.k, mode, last: { day: last.day, race: last.race, wall: last.wall },
     total: v.total, shop: v.shop, fit: v.fit, rebuild: v.rebuild, tier,
     optimal: !!v.optimal && !forced.length, why: forced.length ? '有锁按全部升满计算，不保证过锁' : v.optimal ? '' : (v.shared && v.shared.length ? '部件共用材料，可能不是最低' : '赛事较复杂，限时内找到的最低，未完全证明'),
-    lb, locks, items, prices: Object.fromEntries(Object.entries(prices).map(([id, p]) => [id, p])),
+    ref, locks, items, prices: Object.fromEntries(Object.entries(prices).map(([id, p]) => [id, p])),
     final: v.final.map((o, i) => ({ part: TYPES[i], desc: desc(o.id, o.mask) })),
     guided: locks.filter(l => l.basis === 'guide').map(l => '第 ' + l.day + ' 天第 ' + l.race + ' 场'),
     maxed: locks.filter(l => l.basis === 'max').map(l => '第 ' + l.day + ' 天第 ' + l.race + ' 场'),

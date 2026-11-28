@@ -26,7 +26,7 @@
   // one worker per job, so a stale job can be cancelled by terminating it
   const jobs = {};
   function solve(tag, ver, msg) {
-    const key = [ver, msg.f, msg.last, msg.mode].join('|');
+    const key = [ver, msg.f, msg.last, msg.mode, msg.scope].join('|');
     const hit = cacheGet(key); if (hit) return Promise.resolve(hit);
     if (jobs[tag]) { jobs[tag].w.terminate(); jobs[tag].reject(new Error('cancelled')); }
     return new Promise((resolve, reject) => {
@@ -48,7 +48,7 @@
     if (!def) return;
     const orig = { onLoad: def.onLoad };
     Object.assign(def.data, {
-      planOn: false, planVers: [], planVer: 0, planGates: [], planGate: 0, planMode: 'shop', planBusy: false, plan: null,
+      planOn: false, planVers: [], planVer: 0, planGates: [], planGate: 0, planMode: 'shop', planScope: 'last', planBusy: false, plan: null,
       aimState: '', aimPlan: null, need: {}, dropOf: {}, boardExtra: [],
     });
 
@@ -158,7 +158,7 @@
       useVersion(v) {
         const x = this.vers[v];
         this.setData({
-          planVer: v, planGate: x.gates.length - 1, planMode: 'shop',
+          planVer: v, planGate: x.gates.length - 1, planMode: 'shop', planScope: 'last',
           planGates: x.gates.map((g, i) => ({ label: '第 ' + g[0] + ' 天 · 第 ' + g[1] + ' 场 · ' + g[2] + ' PR' + (i === x.gates.length - 1 ? '（最后一道锁）' : '') })),
         });
         this.runAim(); this.runPlan();
@@ -169,12 +169,13 @@
         this.useVersion(v);
       },
       planPickGate(ev) { this.setData({ planGate: Number(ev.detail.value) }); this.runPlan(); },
+      planPickScope(ev) { this.setData({ planScope: ev.currentTarget.dataset.v }); this.runPlan(); },
       planPickMode(ev) { this.setData({ planMode: ev.currentTarget.dataset.v }); this.runPlan(); },
-      // aim = full route to the last lock, fewest shop credits (same as the purchase list's default)
+      // aim = the last lock only, fewest shop credits (same as the purchase list's default)
       runAim() {
         const x = this.vers[this.data.planVer];
         this.setData({ aimState: 'busy', aimPlan: null }); this.refreshNeed();
-        solve('aim:' + this.__key, this.ver, { f: x.f, last: x.gates.length - 1, mode: 'shop' }).then(r => {
+        solve('aim:' + this.__key, this.ver, { f: x.f, last: x.gates.length - 1, mode: 'shop', scope: 'last' }).then(r => {
           r = withNote(x.k, r);
           this.setData({ aimPlan: r, aimState: r.ok ? 'ok' : 'err' }); this.refreshNeed();
         }, () => {});
@@ -182,7 +183,7 @@
       runPlan() {
         const x = this.vers[this.data.planVer];
         this.setData({ planBusy: true });
-        solve('plan:' + this.__key, this.ver, { f: x.f, last: this.data.planGate, mode: this.data.planMode }).then(r => {
+        solve('plan:' + this.__key, this.ver, { f: x.f, last: this.data.planGate, mode: this.data.planMode, scope: this.data.planScope }).then(r => {
           r = withNote(x.k, r);
           this.setData({ plan: r, planBusy: false });
         }, () => {});

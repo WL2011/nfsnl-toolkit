@@ -31,7 +31,7 @@
   <div class="v-section-title">零件目标</div>
   <div class="aim-row">
     <button v-if="planOn" type="button" class="aim aim-cheap" :class="{ on: SESelectedPartMode == 'cheap', off: aimState == 'err' }"
-      title="按全程最省积分路线（每道 PR 锁都要过）所需的材料来记录" @click="__e($event, 'selectMode', { idx: 'cheap' }, 'view', '')">
+      title="按过最后一道锁、商店采购最少所需的材料来记录" @click="__e($event, 'selectMode', { idx: 'cheap' }, 'view', '')">
       <span class="aim-name">最省钱方案</span>
       <span class="aim-desc" v-if="aimState == 'ok'">{{ aimPlan.tier[0] }}灰{{ aimPlan.tier[1] }}绿{{ aimPlan.tier[2] }}套件 · 商店采购 {{ aimPlan.shop.toLocaleString('zh-CN') }} 积分</span>
       <span class="aim-desc" v-else-if="aimState == 'busy'"><span class="spinner sm"></span>正在计算全程最省路线…</span>
@@ -45,7 +45,7 @@
       </button>
     </template>
   </div>
-  <p class="note">上述配置不能保证达到赛事最低 PR 要求，请以游戏内为准。<template v-if="SESelectedPartMode == 'cheap'">「最省钱方案」按商店采购最少的全程路线计算，各锁前具体买什么见下方采购清单。</template></p>
+  <p class="note">上述配置不能保证达到赛事最低 PR 要求，请以游戏内为准。<template v-if="SESelectedPartMode == 'cheap'">「最省钱方案」按过最后一道锁、商店采购最少计算，具体买什么见下方采购清单。</template></p>
 
   <div class="v-section-title">材料进度 <span class="muted">数字 = 距离目标还需的数量（已扣除各关卡自然掉落）</span></div>
   <div class="mat-board">
@@ -71,7 +71,7 @@
   </div>
 
   <template v-if="planOn">
-    <div class="v-section-title">采购清单 <span class="muted">全程最省积分路线 · 每道 PR 锁都要过</span></div>
+    <div class="v-section-title">采购清单 <span class="muted">过目标 PR 锁最少要买什么</span></div>
     <section class="plan">
       <div class="plan-ctl">
         <label v-if="planVers.length > 1" class="plan-f"><span>赛事版本</span>
@@ -80,6 +80,12 @@
         <label class="plan-f"><span>目标 PR 锁</span>
           <x-picker :range="planGates" range-key="label" :value="planGate" @change="__e($event, 'planPickGate', {}, 'picker', '')"><span class="select-like">{{ planGates[planGate]?.label }}</span></x-picker>
         </label>
+        <div class="plan-f"><span>计算范围</span>
+          <div class="seg sm">
+            <button type="button" class="seg-item" :class="{ on: planScope == 'last' }" title="前面各锁的必得奖励都算已领到，不管前面的锁怎么过" @click="__e($event, 'planPickScope', { v: 'last' }, 'view', '')">只看这道锁</button>
+            <button type="button" class="seg-item" :class="{ on: planScope == 'route' }" title="从开赛起每道 PR 锁都要过，每道锁只用当时已领到的奖励" @click="__e($event, 'planPickScope', { v: 'route' }, 'view', '')">每道锁都要过</button>
+          </div>
+        </div>
         <div class="plan-f"><span>优先省</span>
           <div class="seg sm">
             <button type="button" class="seg-item" :class="{ on: planMode == 'shop' }" @click="__e($event, 'planPickMode', { v: 'shop' }, 'view', '')">商店采购</button>
@@ -88,11 +94,11 @@
         </div>
       </div>
 
-      <div v-if="planBusy" class="plan-busy"><span class="spinner"></span>正在计算全程最省路线（复杂赛事最多十几秒）…</div>
+      <div v-if="planBusy" class="plan-busy"><span class="spinner"></span>正在计算{{ planScope == 'route' ? '全程最省路线（复杂赛事最多十几秒）' : '过这道锁的最省方案' }}…</div>
       <div v-else-if="plan?.error" class="plan-err">{{ plan.error }}</div>
       <template v-else-if="plan?.ok">
         <div class="plan-head">
-          <h3>开赛到第 {{ plan.last.day }} 天第 {{ plan.last.race }} 场（{{ plan.last.wall }} PR）最少 <b>{{ (planMode == 'shop' ? plan.shop : plan.total).toLocaleString('zh-CN') }}</b> {{ planMode == 'shop' ? '采购积分' : '积分' }}</h3>
+          <h3>{{ plan.scope == 'route' ? '开赛到' : '过' }}第 {{ plan.last.day }} 天第 {{ plan.last.race }} 场（{{ plan.last.wall }} PR）最少 <b>{{ (planMode == 'shop' ? plan.shop : plan.total).toLocaleString('zh-CN') }}</b> {{ planMode == 'shop' ? '采购积分' : '积分' }}</h3>
           <span class="plan-badge" :class="{ warn: !plan.optimal }">{{ plan.optimal ? '已证明是这套标准下的最低' : plan.why }}</span>
         </div>
         <div class="plan-kpis">
@@ -101,13 +107,14 @@
           <div><span>安装材料</span><b>{{ plan.fit.toLocaleString('zh-CN') }}</b></div>
           <div><span>重建部件</span><b>{{ plan.rebuild.toLocaleString('zh-CN') }}</b></div>
         </div>
-        <p v-if="plan.lb && (planMode == 'shop' ? plan.lb.shop : plan.lb.total) < (planMode == 'shop' ? plan.shop : plan.total)" class="note">
-          只看这一道锁、不管前面的锁，最低是 {{ (planMode == 'shop' ? plan.lb.shop : plan.lb.total).toLocaleString('zh-CN') }}；多出的 {{ ((planMode == 'shop' ? plan.shop - plan.lb.shop : plan.total - plan.lb.total)).toLocaleString('zh-CN') }} 是为了先过前面的锁、在奖励发下来之前提前买的。</p>
+        <p v-if="plan.scope != 'route'" class="note">只算这一道锁：它之前各关的必得材料都已扣除，不管前面的锁怎么过。<template v-if="plan.ref && (planMode == 'shop' ? plan.ref.shop : plan.ref.total) > (planMode == 'shop' ? plan.shop : plan.total)">如果每道锁都要过，最少 {{ (planMode == 'shop' ? plan.ref.shop : plan.ref.total).toLocaleString('zh-CN') }}，多出的部分是为了先过前面的锁、在奖励发下来之前提前买的。</template></p>
+        <p v-else-if="plan.ref && (planMode == 'shop' ? plan.ref.shop : plan.ref.total) < (planMode == 'shop' ? plan.shop : plan.total)" class="note">
+          只看这一道锁、不管前面的锁，最低是 {{ (planMode == 'shop' ? plan.ref.shop : plan.ref.total).toLocaleString('zh-CN') }}；多出的 {{ ((planMode == 'shop' ? plan.shop - plan.ref.shop : plan.total - plan.ref.total)).toLocaleString('zh-CN') }} 是为了先过前面的锁、在奖励发下来之前提前买的。</p>
         <p v-if="plan.guided.length" class="plan-warn">{{ plan.guided.join('、') }}：数据里只有这一关的推荐三围，没有同车达到这道锁的参考，按推荐三围计算，不保证能过。</p>
         <p v-if="plan.forced?.length" class="plan-warn">数据证明不了能过、按当时星级六件全部升满计算的锁（不保证过锁，升满后看车库 PR）：<template v-for="(t, n) in plan.forced" :key="n"><br>{{ t }}</template></p>
         <p v-if="plan.maxed.length" class="plan-warn">{{ plan.maxed.join('、') }}：当时星级下六件全部升满才勉强够（估算），请升满后看车库 PR。</p>
 
-        <div class="plan-sub">逐锁采购 <span class="muted">每段只买刚好够过这道锁的</span></div>
+        <div class="plan-sub">{{ plan.scope == 'route' ? '逐锁采购' : '这道锁要买' }} <span class="muted">{{ plan.scope == 'route' ? '每段只买刚好够过这道锁的' : '六件升到能过这道锁的最省状态' }}</span></div>
         <div class="plan-table">
           <table>
             <thead><tr><th>设锁关卡</th><th>PR 锁</th><th>这一段要买</th><th class="r">本段采购</th><th class="r">累计{{ planMode == 'shop' ? '采购' : '总支出' }}</th><th>过锁依据</th></tr></thead>
@@ -158,7 +165,7 @@
       <p class="warn">记录只保存在当前浏览器，换浏览器或清除浏览器数据后不会保留。</p>
       <ol class="help-list">
         <li>先选择想要达到的零件目标（如紫 4、紫 5，或「最省钱方案」），会自动记住。</li>
-        <li>「最省钱方案」按商店采购最少的全程路线算目标：每道 PR 锁都要过、每道锁只用当时已领到的奖励。各锁前具体买什么见「采购清单」。</li>
+        <li>「最省钱方案」按过最后一道锁、商店采购最少来算目标（之前各关的必得材料都已扣除）。具体买什么见「采购清单」，也可以切到「每道锁都要过」看全程路线。</li>
         <li>根据目标和该车的零件升级模式，减去所有关卡掉落后，算出距离目标各还需多少材料（需重跑或购买）。</li>
         <li>购买或重跑获得材料后，点该材料的 <b>−1</b>；关卡自然掉落的材料无需扣减。</li>
         <li>点错了可以点 <b>+1</b> 加回来；上限为当前目标所需数量，下限为 0。</li>
