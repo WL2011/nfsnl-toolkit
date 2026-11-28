@@ -58,7 +58,7 @@
         orig.onLoad.call(this, o);
         if (!this.data.se_item) return;
         const shown = (this.data.aims || []).slice(-2).map(a => a.id);
-        if (savedAim === 'cheap') this.setAim('cheap', false);
+        if (savedAim === 'cheap') this.setAim('cheap', true); // the original onLoad resets unknown aims and saves that, so save it back
         else if (!shown.includes(this.data.SESelectedPartMode) && shown.length) this.setAim(shown[shown.length - 1], true);
         else this.refreshNeed();
         this.planInit();

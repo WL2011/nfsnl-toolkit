@@ -30,13 +30,6 @@
 
   <div class="v-section-title">零件目标</div>
   <div class="aim-row">
-    <template v-for="(item, index) in __list(aims)" :key="item.id">
-      <button v-if="index > aims.length - 3" type="button" class="aim" :class="['r-' + item.colorIndex, { on: SESelectedPartMode == item.id }]"
-        @click="__e($event, 'selectMode', { idx: item.id }, 'view', '')">
-        <span class="aim-name">{{ item.name }}</span>
-        <span class="aim-desc">{{ item.desc }}</span>
-      </button>
-    </template>
     <button v-if="planOn" type="button" class="aim aim-cheap" :class="{ on: SESelectedPartMode == 'cheap', off: aimState == 'err' }"
       title="按全程最省积分路线（每道 PR 锁都要过）所需的材料来记录" @click="__e($event, 'selectMode', { idx: 'cheap' }, 'view', '')">
       <span class="aim-name">最省钱方案</span>
@@ -44,6 +37,13 @@
       <span class="aim-desc" v-else-if="aimState == 'busy'"><span class="spinner sm"></span>正在计算全程最省路线…</span>
       <span class="aim-desc" v-else>该赛事暂时算不出，见下方采购清单</span>
     </button>
+    <template v-for="(item, index) in __list(aims)" :key="item.id">
+      <button v-if="index > aims.length - 3" type="button" class="aim" :class="['r-' + item.colorIndex, { on: SESelectedPartMode == item.id }]"
+        @click="__e($event, 'selectMode', { idx: item.id }, 'view', '')">
+        <span class="aim-name">{{ item.name }}</span>
+        <span class="aim-desc">{{ item.desc }}</span>
+      </button>
+    </template>
   </div>
   <p class="note">上述配置不能保证达到赛事最低 PR 要求，请以游戏内为准。<template v-if="SESelectedPartMode == 'cheap'">「最省钱方案」的目标是全程最省路线最终需要的材料，「锁前必得」是最后一道锁之前确定能领到的材料；套件以外的特殊材料见采购清单。</template></p>
 
